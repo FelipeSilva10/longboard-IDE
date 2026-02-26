@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from 'src/lib/supabase'; // Importe a nossa conexão
+import { supabase } from 'src/lib/supabase.ts'; // Importe a nossa conexão
 
 interface LoginScreenProps {
   onLogin: (role: 'student' | 'teacher' | 'visitor') => void;

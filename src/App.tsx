@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LoginScreen } from './screens/LoginScreen';
 import { IdeScreen } from './screens/IdeScreen';
-import { TeacherDashboard } from './screens/TeacherDashboard';
+import { TeacherDashboard } from 'src/TeacherDashboard.tsx';
 import './App.css';
 
 // Adicionamos o 'teacher-dashboard' nas rotas possíveis
