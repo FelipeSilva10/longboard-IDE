@@ -1,25 +1,45 @@
 import { useState } from 'react';
+import { supabase } from 'src/lib/supabase'; // Importe a nossa conexão
 
 interface LoginScreenProps {
-  onLogin: (role: 'student' | 'teacher' | 'visitor', token?: string) => void;
+  onLogin: (role: 'student' | 'teacher' | 'visitor') => void;
 }
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [loginType, setLoginType] = useState<'none' | 'student' | 'teacher'>('none');
-  
-  // Estados para capturar o que o usuário digita
   const [studentCode, setStudentCode] = useState('');
-  const [teacherUser, setTeacherUser] = useState('');
+  
+  // Modificado: Usaremos email em vez de apenas 'user' porque o Supabase Auth exige email por padrão
+  const [teacherEmail, setTeacherEmail] = useState(''); 
   const [teacherPass, setTeacherPass] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleStudentLogin = () => {
-    // Futuramente: Validar studentCode no Supabase
-    if (studentCode.trim() !== '') onLogin('student', studentCode);
+    if (studentCode.trim() !== '') onLogin('student');
   };
 
-  const handleTeacherLogin = () => {
-    // Futuramente: Validar teacherUser e teacherPass no Supabase Auth
-    if (teacherUser && teacherPass) onLogin('teacher', 'fake-jwt-token');
+  const handleTeacherLogin = async () => {
+    setErrorMsg('');
+    setLoading(true);
+
+    // Chama o serviço de autenticação real do Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: teacherEmail,
+      password: teacherPass,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setErrorMsg('Email ou senha incorretos!');
+      return;
+    }
+
+    if (data.user) {
+      onLogin('teacher');
+    }
   };
 
   return (
@@ -28,7 +48,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         <h1>Longboard IDE</h1>
         <p>Bem-vindo! Selecione como deseja entrar:</p>
 
-        {/* Botões Principais de Escolha */}
         {loginType === 'none' && (
           <div className="login-options">
             <button className="btn-primary" onClick={() => setLoginType('student')}>👨‍🎓 Sou Aluno</button>
@@ -37,38 +56,33 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
         )}
 
-        {/* Formulário do Aluno */}
         {loginType === 'student' && (
           <div className="login-form">
             <h3>Aluno</h3>
             <input 
-              type="text" 
-              placeholder="Código da Turma ou Convite..." 
-              value={studentCode}
-              onChange={(e) => setStudentCode(e.target.value)}
+              type="text" placeholder="Código da Turma..." 
+              value={studentCode} onChange={(e) => setStudentCode(e.target.value)}
             />
             <button className="btn-primary" onClick={handleStudentLogin}>Entrar na Turma</button>
             <button className="btn-text" onClick={() => setLoginType('none')}>Voltar</button>
           </div>
         )}
 
-        {/* Formulário do Professor */}
         {loginType === 'teacher' && (
           <div className="login-form">
             <h3>Professor</h3>
+            {errorMsg && <div style={{ color: '#ff4757', fontWeight: 'bold' }}>{errorMsg}</div>}
             <input 
-              type="text" 
-              placeholder="Usuário" 
-              value={teacherUser}
-              onChange={(e) => setTeacherUser(e.target.value)}
+              type="email" placeholder="Seu Email..." 
+              value={teacherEmail} onChange={(e) => setTeacherEmail(e.target.value)}
             />
             <input 
-              type="password" 
-              placeholder="Senha" 
-              value={teacherPass}
-              onChange={(e) => setTeacherPass(e.target.value)}
+              type="password" placeholder="Sua Senha..." 
+              value={teacherPass} onChange={(e) => setTeacherPass(e.target.value)}
             />
-            <button className="btn-secondary" onClick={handleTeacherLogin}>Acessar Painel</button>
+            <button className="btn-secondary" onClick={handleTeacherLogin} disabled={loading}>
+              {loading ? 'Validando...' : 'Acessar Painel'}
+            </button>
             <button className="btn-text" onClick={() => setLoginType('none')}>Voltar</button>
           </div>
         )}

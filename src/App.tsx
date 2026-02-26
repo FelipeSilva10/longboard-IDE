@@ -1,35 +1,44 @@
 import { useState } from 'react';
 import { LoginScreen } from './screens/LoginScreen';
 import { IdeScreen } from './screens/IdeScreen';
+import { TeacherDashboard } from './screens/TeacherDashboard';
 import './App.css';
 
-// Definição dos perfis possíveis
-type UserRole = 'guest' | 'student' | 'teacher' | 'visitor';
+// Adicionamos o 'teacher-dashboard' nas rotas possíveis
+type UserRole = 'guest' | 'student' | 'teacher' | 'teacher-dashboard' | 'visitor';
 
 function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('guest');
 
-  // Função chamada pela tela de login quando a autenticação dá certo
   const handleLogin = (role: 'student' | 'teacher' | 'visitor') => {
-    setCurrentRole(role);
-    // Nota: Se fosse Professor ou Aluno, aqui redirecionaríamos para o Dashboard.
-    // Como ainda não temos o Dashboard criado, vamos mandar direto pra IDE por enquanto.
+    // Se for professor, vai para o painel. Se for aluno/visitante, vai direto pra IDE.
+    if (role === 'teacher') {
+      setCurrentRole('teacher-dashboard');
+    } else {
+      setCurrentRole(role);
+    }
   };
 
   const handleLogout = () => {
-    setCurrentRole('guest'); // Volta para a tela de login
+    setCurrentRole('guest');
   };
 
-  // Roteamento simples: Se for 'guest', mostra o Login. Senão, mostra a IDE.
-  return (
-    <>
-      {currentRole === 'guest' ? (
-        <LoginScreen onLogin={handleLogin} />
-      ) : (
-        <IdeScreen role={currentRole} onLogout={handleLogout} />
-      )}
-    </>
-  );
+  // Renderização condicional simples (o nosso roteador)
+  if (currentRole === 'guest') {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (currentRole === 'teacher-dashboard') {
+    return (
+      <TeacherDashboard 
+        onLogout={handleLogout} 
+        onOpenIde={() => setCurrentRole('teacher')} // Sai do painel e vai pra IDE
+      />
+    );
+  }
+
+  // Se for student, visitor ou teacher (querendo ver a IDE), renderiza o Blockly
+  return <IdeScreen role={currentRole} onLogout={handleLogout} />;
 }
 
 export default App;
