@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from 'src/lib/supabase.ts';
+import { supabase } from './lib/supabase.ts';
 
 interface Classroom {
   id: string;
