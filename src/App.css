@@ -1,0 +1,53 @@
+/* Estilos da Tela de Login */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #ffffff;
+}
+
+.login-card {
+  background-color: #1e1e1e;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-card h1 { color: #4caf50; margin-bottom: 10px; }
+.login-card p { color: #aaa; margin-bottom: 30px; }
+
+.login-options, .login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.login-form input {
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background-color: #2b2b2b;
+  color: white;
+  font-size: 16px;
+}
+
+button {
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:hover { opacity: 0.8; }
+.btn-primary { background-color: #4caf50; color: white; }
+.btn-secondary { background-color: #2196f3; color: white; }
+.btn-outline { background-color: transparent; border: 1px solid #777; color: white; }
+.btn-text { background-color: transparent; color: #aaa; text-decoration: underline; }
+.btn-logout { background-color: #f44336; color: white; padding: 8px 16px; margin-left: auto; }
