@@ -6,7 +6,6 @@ import * as PtBr from 'blockly/msg/pt-br';
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
 
-// (Mantenha aqui as variáveis BOARDS, customBlocks e as definições do cppGenerator exatamente como estavam no código anterior)
 const BOARDS = {
   nano: { name: 'Arduino Nano', pins: [['Pino 13', '13'], ['Pino 12', '12']] },
   esp32: { name: 'ESP32 DevKit V1', pins: [['Pino 2', '2'], ['Pino 4', '4']] }
@@ -32,13 +31,13 @@ cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
   return `pinMode(${pin}, ${mode});\n`;
 };
 
-// --- COMPONENTE DA TELA DA IDE ---
+// --- MUDANÇA AQUI: Trocamos onLogout por onBack ---
 interface IdeScreenProps {
   role: 'student' | 'teacher' | 'visitor';
-  onLogout: () => void;
+  onBack: () => void; 
 }
 
-export function IdeScreen({ role, onLogout }: IdeScreenProps) {
+export function IdeScreen({ role, onBack }: IdeScreenProps) {
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   
@@ -74,7 +73,10 @@ export function IdeScreen({ role, onLogout }: IdeScreenProps) {
           <option value="nano">🖥️ Arduino Nano</option>
           <option value="esp32">📡 ESP32 DevKit</option>
         </select>
-        <button className="btn-logout" onClick={onLogout}>Sair</button>
+        {/* --- MUDANÇA AQUI: Botão inteligente de voltar --- */}
+        <button className="btn-logout" onClick={onBack}>
+          {role === 'visitor' ? 'Sair' : 'Voltar ao Painel'}
+        </button>
       </div>
       <div className="workspace-area">
         <div ref={blocklyDiv} id="blocklyDiv" />
