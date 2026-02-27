@@ -31,7 +31,6 @@ cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
   return `pinMode(${pin}, ${mode});\n`;
 };
 
-// --- MUDANÇA AQUI: Trocamos onLogout por onBack ---
 interface IdeScreenProps {
   role: 'student' | 'teacher' | 'visitor';
   onBack: () => void; 
@@ -67,15 +66,19 @@ export function IdeScreen({ role, onBack }: IdeScreenProps) {
 
   return (
     <div className="app-container">
-      <div className="topbar">
-        <h2>Longboard IDE ({role})</h2>
-        <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')}>
-          <option value="nano">🖥️ Arduino Nano</option>
-          <option value="esp32">📡 ESP32 DevKit</option>
-        </select>
-        {/* --- MUDANÇA AQUI: Botão inteligente de voltar --- */}
-        <button className="btn-logout" onClick={onBack}>
-          {role === 'visitor' ? 'Sair' : 'Voltar ao Painel'}
+      {/* Barra do topo organizada com Flexbox */}
+      <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <h2 style={{ margin: 0 }}>Longboard IDE <span style={{ fontSize: '1rem', color: '#7f8c8d' }}>({role})</span></h2>
+          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} style={{ margin: 0 }}>
+            <option value="nano">🖥️ Arduino Nano</option>
+            <option value="esp32">📡 ESP32 DevKit</option>
+          </select>
+        </div>
+        
+        {/* Botão de voltar com estilo de contorno para não gritar na tela */}
+        <button className="btn-outline" onClick={onBack} style={{ borderColor: '#ff4757', color: '#ff4757', padding: '10px 20px', margin: 0 }}>
+          {role === 'visitor' ? 'Sair da IDE' : 'Voltar ao Painel'}
         </button>
       </div>
       <div className="workspace-area">
