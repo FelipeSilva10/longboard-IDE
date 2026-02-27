@@ -2,42 +2,43 @@ import { useState } from 'react';
 import { LoginScreen } from './screens/LoginScreen';
 import { IdeScreen } from './screens/IdeScreen';
 import { TeacherDashboard } from "./TeacherDashboard";
+import { StudentDashboard } from "./screens/StudentDashboard"; // <--- Importando a tela!
 import './App.css';
 
-// Adicionamos o 'teacher-dashboard' nas rotas possíveis
-type UserRole = 'guest' | 'student' | 'teacher' | 'teacher-dashboard' | 'visitor';
+type UserRole = 'guest' | 'student' | 'teacher' | 'teacher-dashboard' | 'student-dashboard' | 'visitor';
 
 function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('guest');
+  const [activeProjectId, setActiveProjectId] = useState<string | undefined>();
 
   const handleLogin = (role: 'student' | 'teacher' | 'visitor') => {
-    // Se for professor, vai para o painel. Se for aluno/visitante, vai direto pra IDE.
-    if (role === 'teacher') {
-      setCurrentRole('teacher-dashboard');
-    } else {
-      setCurrentRole(role);
-    }
+    if (role === 'teacher') setCurrentRole('teacher-dashboard');
+    else if (role === 'student') setCurrentRole('student-dashboard'); // <--- Aluno vai pro Painel
+    else setCurrentRole(role);
   };
 
   const handleLogout = () => {
     setCurrentRole('guest');
+    setActiveProjectId(undefined);
   };
 
-  // Renderização condicional simples (o nosso roteador)
-  if (currentRole === 'guest') {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  if (currentRole === 'teacher-dashboard') {
+  if (currentRole === 'guest') return <LoginScreen onLogin={handleLogin} />;
+  
+  if (currentRole === 'teacher-dashboard') return <TeacherDashboard onLogout={handleLogout} onOpenIde={() => setCurrentRole('teacher')} />;
+  
+  if (currentRole === 'student-dashboard') {
     return (
-      <TeacherDashboard 
+      <StudentDashboard 
         onLogout={handleLogout} 
-        onOpenIde={() => setCurrentRole('teacher')} // Sai do painel e vai pra IDE
+        onOpenIde={(projectId) => {
+          setActiveProjectId(projectId);
+          setCurrentRole('student'); // Abre o Blockly
+        }} 
       />
     );
   }
 
-  // Se for student, visitor ou teacher (querendo ver a IDE), renderiza o Blockly
+  // IdeScreen
   return <IdeScreen role={currentRole} onLogout={handleLogout} />;
 }
 

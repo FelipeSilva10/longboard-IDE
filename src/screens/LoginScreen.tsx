@@ -20,7 +20,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [errorMsg, setErrorMsg] = useState('');
 
   // --- O TRUQUE DO E-MAIL FANTASMA ---
-  const DOMINIO_ALUNO = '@aluno.longboard';
+  const DOMINIO_ALUNO = '@aluno.longboard.com';
 
   const handleStudentLogin = async () => {
     if (studentUsername.trim() === '' || studentPass.trim() === '') return;
