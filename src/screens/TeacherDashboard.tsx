@@ -61,7 +61,7 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
   const handleCreateStudentAccount = async () => {
     if (!newStudentName || !newStudentPass || !managingClass) return;
     const { supabaseHelper } = await import('../lib/supabase');
-    const emailFormatado = `${newStudentName.trim().toLowerCase()}@aluno.longboard.com`;
+    const emailFormatado = `${newStudentName.trim().toLowerCase()}@aluno.oficinacode.com`;
     const { data: authData, error: authError } = await supabaseHelper.auth.signUp({ email: emailFormatado, password: newStudentPass });
     
     if (authError) { alert("Erro: " + authError.message); return; }

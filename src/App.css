@@ -1,5 +1,16 @@
 /* Importando uma fonte amigável e arredondada (Nunito) */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+
+:root {
+  /* Nova Paleta baseada na Logo Oficina Code e nas suas escolhas */
+  --primary: #00a8ff;        
+  --secondary: #4cd137;      
+  --accent: #ffffff;         
+  --dark: #2f3542;           
+  --background: #f4f7f6;     
+  --white: #ffffff;
+  --danger: #ff4757;         
+}
 
 /* --- Estilos Globais --- */
 * {
@@ -13,49 +24,38 @@ body, html, #root {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: #f4f7f6; /* Fundo bem claro para a IDE */
+  background-color: var(--background);
   color: #333;
 }
 
 /* =========================================
-   TELA DE LOGIN
+   TELA DE LOGIN (AGORA COM VIDA!)
    ========================================= */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  /* Fundo gradiente vibrante e lúdico */
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+  /* Fundo azul moderno e elegante que dá contraste ao cartão branco */
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
 }
 
-:root {
-  /* Paleta Extraída da Logo Oficina Code */
-  --primary: #00a8ff;        /* Azul da fonte 'Code' */
-  --secondary: #4cd137;      /* Verde vibrante */
-  --accent: #f0932b;         /* Laranja das bolinhas */
-  --dark: #2f3542;           /* Azul marinho profundo da fonte 'Oficina' */
-  --background: #f1f2f6;
-  --white: #ffffff;
-  --danger: #ff4757;
+/* O CARTÃO MÁGICO (Faltava isso!) */
+.login-card {
+  background-color: var(--white);
+  padding: 50px 40px;
+  border-radius: 32px; /* Super arredondado, amigável para crianças */
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3); /* Sombra pesada e suave */
+  border-top: 8px solid var(--accent); /* Detalhe laranja no topo */
+  animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efeito "Pulo" */
 }
 
-/* Aplicando o novo nome e fonte nos cards de login */
-.login-card h1 {
-  color: var(--dark);
-  font-family: 'Inter', sans-serif;
-  font-weight: 800;
-}
-
-.login-card h1 span {
-  color: var(--primary); /* Para destacar o 'Code' */
-}
-
-.login-card h1 { 
-  color: #2c3e50; 
-  font-size: 2.5rem;
-  margin-bottom: 5px; 
-  font-weight: 800;
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.9) translateY(30px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .login-card p { 
@@ -72,39 +72,41 @@ body, html, #root {
 }
 
 .login-form h3 {
-  color: #2c3e50;
+  color: var(--dark);
   margin-bottom: 10px;
   font-size: 1.5rem;
+  font-weight: 900;
 }
 
 .login-form input {
-  padding: 15px;
-  border-radius: 14px;
+  padding: 16px;
+  border-radius: 16px;
   border: 2px solid #e0e6ed;
   background-color: #f8fafd;
   color: #333;
-  font-size: 16px;
+  font-size: 1.1rem;
   font-weight: bold;
   transition: all 0.3s ease;
 }
 
 .login-form input::placeholder {
   color: #a4b0be;
-  font-weight: normal;
+  font-weight: 700;
 }
 
 .login-form input:focus {
   outline: none;
-  border-color: #00a8ff;
+  border-color: var(--primary);
   background-color: #fff;
-  box-shadow: 0 0 0 4px rgba(0, 168, 255, 0.2);
+  box-shadow: 0 0 0 4px rgba(0, 168, 255, 0.15);
+  transform: translateY(-2px);
 }
 
 /* --- Botões Infantis (Estilo Jogo) --- */
 button {
-  padding: 15px;
+  padding: 16px;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px; /* Acompanha o input */
   font-size: 1.1rem;
   font-weight: 800;
   cursor: pointer;
@@ -118,32 +120,35 @@ button:active {
   box-shadow: 0 0px 0px rgba(0,0,0,0.2); /* Some a sombra */
 }
 
+/* Suas cores escolhidas! */
 .btn-primary { 
-  background-color: #4cd137; 
+  background-color: #ef9f4b; 
   color: white; 
-  box-shadow: 0 6px 0px #359826; 
+  box-shadow: 0 6px 0px #cf8235; 
 }
 
 .btn-secondary { 
-  background-color: #00a8ff; 
+  background-color: #23638c; 
   color: white; 
-  box-shadow: 0 6px 0px #007bb5;
+  box-shadow: 0 6px 0px #1a4b6b;
 }
 
 .btn-outline { 
-  background-color: #f5f6fa; 
-  border: 2px solid #dcdde1; 
-  color: #2f3640; 
-  box-shadow: 0 6px 0px #dcdde1;
+  background-color: #e73561; 
+  color: white; 
+  box-shadow: 0 6px 0px #bf254c;
 }
 
 .btn-text { 
   background-color: transparent; 
-  color: #7f8c8d; 
+  color: #a4b0be; 
   box-shadow: none; 
   text-decoration: underline; 
   padding: 5px;
+  font-size: 1rem;
 }
+
+.btn-text:hover { color: var(--dark); }
 .btn-text:active { transform: translateY(2px); }
 
 /* =========================================
@@ -157,20 +162,21 @@ button:active {
 
 /* Barra do Topo mais limpa e amigável */
 .topbar {
-  height: 70px;
-  background-color: #ffffff;
+  height: 75px;
+  background-color: var(--white);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 25px;
   border-bottom: 2px solid #e0e6ed;
   gap: 15px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  z-index: 10; /* Fica acima do Blockly */
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  z-index: 10;
 }
 
 .topbar h2 {
-  color: #2c3e50;
-  font-weight: 800;
+  color: var(--dark);
+  font-weight: 900;
+  letter-spacing: -0.5px;
 }
 
 .topbar select {
@@ -180,29 +186,18 @@ button:active {
   background-color: #f8fafd;
   font-size: 1rem;
   font-weight: bold;
-  color: #2c3e50;
+  color: var(--dark);
   cursor: pointer;
   outline: none;
+  transition: border-color 0.2s;
 }
 
-.topbar select:focus {
-  border-color: #00a8ff;
-}
-
-/* Botão de Sair menor e no canto */
-.btn-logout { 
-  background-color: #ff4757; 
-  color: white; 
-  padding: 10px 20px; 
-  margin-left: auto; 
-  box-shadow: 0 4px 0px #ff1e34;
-}
-.btn-logout:active { transform: translateY(4px); }
+.topbar select:focus { border-color: var(--primary); }
 
 .workspace-area {
   display: flex;
   flex: 1;
-  height: calc(100vh - 70px);
+  height: calc(100vh - 75px);
 }
 
 #blocklyDiv {
@@ -213,7 +208,7 @@ button:active {
 /* Painel do Professor (Código C++) */
 .code-panel {
   width: 350px;
-  background-color: #2c3e50; /* Azul escuro bem elegante */
+  background-color: var(--dark);
   border-left: 2px solid #1a252f;
   padding: 20px;
   display: flex;
@@ -222,7 +217,7 @@ button:active {
 
 .code-panel h3 {
   margin-bottom: 15px;
-  color: #4cd137;
+  color: var(--secondary);
   font-weight: 800;
 }
 
