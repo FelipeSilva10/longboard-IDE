@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabase';
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
 
-// 1. AS NOSSAS PLACAS E AS SUAS PORTAS REAIS
 const BOARDS = {
   nano: { 
     name: 'Arduino Nano', 
@@ -19,17 +18,35 @@ const BOARDS = {
   }
 };
 
-// Variável que guarda os pinos atuais. O Blockly vai lê-la sempre que o aluno abrir um bloco!
 let currentBoardPins = BOARDS.nano.pins;
 
-// 2. DEFINIÇÃO DOS BLOCOS CUSTOMIZADOS LÚDICOS (Evitando erros de Hot Reload do React)
+// DEFINIÇÃO DOS BLOCOS CUSTOMIZADOS
 if (!Blockly.Blocks['configurar_pino']) {
   const customBlocks = [
+    // --- OS DOIS BLOCOS MESTRES SEPARADOS ---
+    {
+      "type": "bloco_setup",
+      "message0": "⚙️ PREPARAR (Roda 1 vez) %1",
+      "args0": [{ "type": "input_statement", "name": "DO" }],
+      "colour": 290, // Roxo/Magenta
+      "tooltip": "Coloque aqui as configurações iniciais.",
+      "helpUrl": ""
+    },
+    {
+      "type": "bloco_loop",
+      "message0": "🔄 AGIR (Roda para sempre) %1",
+      "args0": [{ "type": "input_statement", "name": "DO" }],
+      "colour": 260, // Roxo escuro/Azulado
+      "tooltip": "Coloque aqui as ações que vão se repetir infinitamente.",
+      "helpUrl": ""
+    },
+
+    // --- BLOCOS DE AÇÃO ---
     {
       "type": "configurar_pino",
       "message0": "⚙️ Configurar pino %1 como %2",
       "args0": [
-        { "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins }, // <-- Menu Dinâmico!
+        { "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins },
         { "type": "field_dropdown", "name": "MODE", "options": [["Saída (Enviar sinal)", "OUTPUT"], ["Entrada (Ler sensor)", "INPUT"]] }
       ],
       "previousStatement": null, "nextStatement": null, "colour": 230
@@ -64,24 +81,34 @@ if (!Blockly.Blocks['configurar_pino']) {
   ];
   Blockly.defineBlocksWithJsonArray(customBlocks);
 
-  // 3. TRADUÇÃO DOS BLOCOS PARA C++
+  // --- TRADUÇÃO DOS BLOCOS MESTRES PARA C++ ---
+  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
+    const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n';
+    return `void setup() {\n${branch}}\n\n`;
+  };
+
+  cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) {
+    const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas ações principais entrarão aqui...\n';
+    return `void loop() {\n${branch}}\n\n`;
+  };
+
   cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
-    return `pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`;
+    return `  pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`;
   };
   cppGenerator.forBlock['escrever_pino'] = function(block: Blockly.Block) {
-    return `digitalWrite(${block.getFieldValue('PIN')}, ${block.getFieldValue('STATE')});\n`;
+    return `  digitalWrite(${block.getFieldValue('PIN')}, ${block.getFieldValue('STATE')});\n`;
   };
   cppGenerator.forBlock['esperar'] = function(block: Blockly.Block) {
-    return `delay(${block.getFieldValue('TIME')});\n`;
+    return `  delay(${block.getFieldValue('TIME')});\n`;
   };
   cppGenerator.forBlock['repetir_vezes'] = function(block: Blockly.Block) {
     const times = block.getFieldValue('TIMES');
     const branch = cppGenerator.statementToCode(block, 'DO') || '';
-    return `for (int i = 0; i < ${times}; i++) {\n${branch}}\n`;
+    return `  for (int i = 0; i < ${times}; i++) {\n  ${branch}  }\n`;
   };
 }
 
-// 4. ESTRUTURA DAS CATEGORIAS (Menu Lateral)
+// Os Blocos Mestres não ficam no Toolbox, eles nascem na tela!
 const toolboxConfig = {
   kind: 'categoryToolbox',
   contents: [
@@ -125,24 +152,48 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Magia do Menu Dinâmico: Sempre que a placa muda, o Blockly recebe as novas portas
   useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspace.current) {
       workspace.current = Blockly.inject(blocklyDiv.current, {
-        toolbox: toolboxConfig, // Usamos as Categorias
+        toolbox: toolboxConfig, 
         grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
-        readOnly: role === 'teacher' && projectId !== undefined 
+        readOnly: role === 'teacher' && projectId !== undefined,
+        move: { scrollbars: true, drag: true, wheel: true }
       });
 
+      // LÓGICA DE GERAÇÃO C++
       workspace.current.addChangeListener((event) => {
         if (event.isUiEvent) return; 
         try {
           const code = cppGenerator.workspaceToCode(workspace.current!);
-          setGeneratedCode(code || '// Arraste blocos para começar a programar!');
+          setGeneratedCode(code || '// Arraste blocos para dentro de PREPARAR e AGIR!');
         } catch (e) { console.error(e); }
       });
+
+      // FUNÇÃO PARA GARANTIR QUE OS DOIS BLOCOS MESTRES EXISTEM E SÃO INQUEBRÁVEIS
+      const ensureRootBlocks = () => {
+        if (!workspace.current) return;
+        
+        let setupBlock = workspace.current.getTopBlocks(false).find(b => b.type === 'bloco_setup');
+        if (!setupBlock) {
+          setupBlock = workspace.current.newBlock('bloco_setup');
+          setupBlock.moveBy(50, 50); // Canto superior esquerdo
+          setupBlock.initSvg();
+          setupBlock.render();
+        }
+        setupBlock.setDeletable(false); // Impede de apagar
+
+        let loopBlock = workspace.current.getTopBlocks(false).find(b => b.type === 'bloco_loop');
+        if (!loopBlock) {
+          loopBlock = workspace.current.newBlock('bloco_loop');
+          loopBlock.moveBy(450, 50); // Coloca ao lado do Setup, dando espaço para os blocos crescerem
+          loopBlock.initSvg();
+          loopBlock.render();
+        }
+        loopBlock.setDeletable(false); // Impede de apagar
+      };
 
       if (projectId) {
         const loadProject = async () => {
@@ -150,12 +201,20 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
           if (data && !error) {
             setProjectName(data.name);
             if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
-            if (data.workspace_data && Object.keys(data.workspace_data).length > 0) {
-              Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!);
-            }
+            
+            // Tenta carregar. Se falhar ou for um projeto criado antes dessa atualização, apenas injeta os novos blocos
+            try {
+              if (data.workspace_data && Object.keys(data.workspace_data).length > 0) {
+                Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!);
+              }
+            } catch (err) { console.log("Dados do workspace antigos ignorados."); }
+            
+            ensureRootBlocks(); 
           }
         };
         loadProject();
+      } else {
+        ensureRootBlocks();
       }
     }
   }, [projectId, role]);
@@ -178,17 +237,15 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   return (
     <div className="app-container">
       
-      {/* COCKPIT DE CONTROLE NO TOPO */}
+      {/* COCKPIT DE CONTROLE */}
       <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '15px' }}>
         
-        {/* Título */}
         <h2 style={{ margin: 0, minWidth: 'fit-content' }}>
           {role === 'student' && projectId ? `Mesa: ${projectName}` : 
            role === 'teacher' && projectId ? `👀 Inspecionando: ${projectName}` : 
            'Oficina Code'}
         </h2>
 
-        {/* CONTROLES DE HARDWARE (MOCK) */}
         <div style={{ display: 'flex', gap: '10px', backgroundColor: '#eef2f5', padding: '6px 12px', borderRadius: '12px', flexWrap: 'wrap' }}>
           
           <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} disabled={role === 'teacher' && projectId !== undefined} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #d1d8e0', margin: 0 }}>
@@ -202,12 +259,11 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
             <option value="COM4">COM4 (Dispositivo Desconhecido)</option>
           </select>
 
-          <button className="btn-primary" onClick={() => alert('Em breve: Este botão enviará o código C++ silenciosamente para a placa via Rust!')} style={{ margin: 0, padding: '8px 15px', backgroundColor: '#4cd137', border: 'none', boxShadow: '0 4px 0px #44bd32' }}>
+          <button className="btn-primary" onClick={() => alert('Em breve: Enviar código para a placa!')} style={{ margin: 0, padding: '8px 15px', backgroundColor: 'var(--secondary)', border: 'none', boxShadow: '0 4px 0px #3aa828' }}>
             🚀 Enviar
           </button>
         </div>
         
-        {/* BOTÕES DE NAVEGAÇÃO E SAVE */}
         <div style={{ display: 'flex', gap: '10px' }}>
           {role === 'student' && projectId && (
             <button className="btn-primary" onClick={handleSaveProject} disabled={isSaving} style={{ padding: '10px 20px', margin: 0 }}>
@@ -215,7 +271,7 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
             </button>
           )}
 
-          <button className="btn-outline" onClick={onBack} style={{ borderColor: '#ff4757', color: '#ff4757', padding: '10px 20px', margin: 0 }}>
+          <button className="btn-outline" onClick={onBack} style={{ borderColor: 'var(--danger)', color: 'var(--danger)', padding: '10px 20px', margin: 0, boxShadow: 'none' }}>
             Voltar
           </button>
         </div>
@@ -232,12 +288,12 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         )}
       </div>
 
-      {/* MODAL BONITO DE SUCESSO AO SALVAR */}
+      {/* MODAIS */}
       {saveStatus === 'success' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>✅</div>
-            <h2 style={{ color: '#2c3e50', marginBottom: '15px' }}>Projeto Salvo!</h2>
+            <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Projeto Salvo!</h2>
             <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1.1rem' }}>As suas peças e progressos foram guardados na nuvem com sucesso.</p>
             <button className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }} onClick={() => setSaveStatus(null)}>
               Continuar
@@ -246,14 +302,13 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         </div>
       )}
 
-      {/* MODAL BONITO DE ERRO */}
       {saveStatus === 'error' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>❌</div>
-            <h2 style={{ color: '#2c3e50', marginBottom: '15px' }}>Ocorreu um Erro</h2>
+            <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Ocorreu um Erro</h2>
             <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1rem' }}>{errorMessage}</p>
-            <button className="btn-outline" style={{ width: '100%', padding: '14px', borderColor: '#ff4757', color: '#ff4757' }} onClick={() => setSaveStatus(null)}>
+            <button className="btn-outline" style={{ width: '100%', padding: '14px', borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => setSaveStatus(null)}>
               Tentar Novamente
             </button>
           </div>

@@ -36,8 +36,8 @@ body, html, #root {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  /* Fundo azul moderno e elegante que dá contraste ao cartão branco */
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  position: relative; /* FUNDAMENTAL */
+  z-index: 1;         /* FUNDAMENTAL */
 }
 
 /* O CARTÃO MÁGICO (Faltava isso!) */
