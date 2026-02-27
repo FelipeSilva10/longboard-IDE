@@ -75,7 +75,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>Longboard IDE</h1>
+        <h1>Oficina Code</h1>
         <p>Bem-vindo! Selecione como deseja entrar:</p>
 
         {loginType === 'none' && (

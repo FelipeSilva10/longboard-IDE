@@ -185,7 +185,7 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         <h2 style={{ margin: 0, minWidth: 'fit-content' }}>
           {role === 'student' && projectId ? `Mesa: ${projectName}` : 
            role === 'teacher' && projectId ? `👀 Inspecionando: ${projectName}` : 
-           'Longboard IDE'}
+           'Oficina Code'}
         </h2>
 
         {/* CONTROLES DE HARDWARE (MOCK) */}

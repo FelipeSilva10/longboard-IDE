@@ -29,15 +29,26 @@ body, html, #root {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
 }
 
-.login-card {
-  background-color: #ffffff;
-  padding: 40px 30px;
-  border-radius: 24px; /* Bordas bem redondinhas */
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-  text-align: center;
-  width: 90%;
-  max-width: 420px;
-  border: 4px solid rgba(255, 255, 255, 0.5);
+:root {
+  /* Paleta Extraída da Logo Oficina Code */
+  --primary: #00a8ff;        /* Azul da fonte 'Code' */
+  --secondary: #4cd137;      /* Verde vibrante */
+  --accent: #f0932b;         /* Laranja das bolinhas */
+  --dark: #2f3542;           /* Azul marinho profundo da fonte 'Oficina' */
+  --background: #f1f2f6;
+  --white: #ffffff;
+  --danger: #ff4757;
+}
+
+/* Aplicando o novo nome e fonte nos cards de login */
+.login-card h1 {
+  color: var(--dark);
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+}
+
+.login-card h1 span {
+  color: var(--primary); /* Para destacar o 'Code' */
 }
 
 .login-card h1 { 
