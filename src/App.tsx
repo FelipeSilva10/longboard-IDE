@@ -45,8 +45,8 @@ function App() {
     );
   }
 
-  // Passamos o onBack em vez do onLogout
-  return <IdeScreen role={currentRole} onBack={handleBackToDashboard} />;
+// Substitua a penúltima linha do seu App.tsx por isto:
+return <IdeScreen role={currentRole} onBack={handleBackToDashboard} projectId={activeProjectId} />;
 }
 
 export default App;
