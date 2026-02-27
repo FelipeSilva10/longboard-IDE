@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase.ts';
+import { supabase } from './lib/supabase'; // Import corrigido (sem o .ts e certifique-se que o caminho está certo)
 
 interface Classroom {
   id: string;
@@ -17,6 +17,11 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newClassName, setNewClassName] = useState('');
+  
+  // Estados para criação de alunos
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentPass, setNewStudentPass] = useState('');
 
   // Função que vai à base de dados procurar as turmas deste professor
   const fetchClassrooms = async () => {
@@ -66,6 +71,45 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
     }
   };
 
+  // Função onde o Professor cria a conta do Aluno
+  const handleCreateStudentAccount = async (classroomId: string) => {
+    if (newStudentName.trim() === '' || newStudentPass.trim() === '') {
+      alert("Preencha o nome de usuário e a senha do aluno.");
+      return;
+    }
+
+    // Usamos o Helper para não deslogar o professor
+    const { supabaseHelper } = await import('./lib/supabase'); // Caminho atualizado
+    const emailFormatado = `${newStudentName.trim().toLowerCase()}@aluno.longboard`;
+
+    // 1. Cria a conta no Supabase Auth
+    const { data: authData, error: authError } = await supabaseHelper.auth.signUp({
+      email: emailFormatado,
+      password: newStudentPass,
+    });
+
+    if (authError) {
+      alert("Erro ao criar aluno: " + authError.message);
+      return;
+    }
+
+    // 2. Salva o perfil e vincula à turma
+    if (authData.user) {
+      await supabase.from('profiles').insert([
+        { id: authData.user.id, role: 'student', full_name: newStudentName }
+      ]);
+
+      await supabase.from('classroom_students').insert([
+        { classroom_id: classroomId, student_id: authData.user.id }
+      ]);
+
+      alert(`Aluno ${newStudentName} criado e adicionado à turma com sucesso!`);
+      setNewStudentName('');
+      setNewStudentPass('');
+      setSelectedClassId(null); // Fecha o modalzinho
+    }
+  };
+
   return (
     <div className="app-container" style={{ backgroundColor: '#f4f7f6', overflowY: 'auto' }}>
       <div className="topbar">
@@ -87,7 +131,7 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
           )}
         </div>
 
-        {/* Formulário de Criação de Turma (Aparece ao clicar em Nova Turma) */}
+        {/* Formulário de Criação de Turma */}
         {isCreating && (
           <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '16px', marginBottom: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', display: 'flex', gap: '10px' }}>
             <input 
@@ -113,11 +157,38 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
             {classrooms.map((cls) => (
               <div key={cls.id} style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', borderTop: '5px solid #00a8ff' }}>
                 <h3 style={{ color: '#2c3e50', marginBottom: '15px', fontSize: '1.4rem' }}>{cls.name}</h3>
-                <div style={{ backgroundColor: '#f8fafd', padding: '15px', borderRadius: '10px', border: '2px dashed #00a8ff', textAlign: 'center' }}>
-                  <p style={{ color: '#7f8c8d', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 'bold' }}>CÓDIGO DE ACESSO DO ALUNO:</p>
+                
+                <div style={{ backgroundColor: '#f8fafd', padding: '15px', borderRadius: '10px', border: '2px dashed #00a8ff', textAlign: 'center', marginBottom: '15px' }}>
+                  <p style={{ color: '#7f8c8d', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 'bold' }}>CÓDIGO DA TURMA:</p>
                   <p style={{ color: '#00a8ff', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '2px' }}>{cls.join_code}</p>
                 </div>
-                <button className="btn-outline" style={{ width: '100%', marginTop: '15px' }}>Ver Projetos dos Alunos</button>
+
+                <button className="btn-outline" style={{ width: '100%', marginBottom: '15px' }}>Ver Projetos dos Alunos</button>
+
+                {/* --- ÁREA DE GERENCIAR ALUNOS --- */}
+                {selectedClassId === cls.id ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#f1f2f6', padding: '15px', borderRadius: '10px' }}>
+                    <h4 style={{ color: '#2f3542', margin: 0 }}>👤 Cadastrar Novo Aluno</h4>
+                    <input 
+                      type="text" placeholder="Nome de Usuário (ex: joao123)" 
+                      value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)}
+                      style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ced6e0' }}
+                    />
+                    <input 
+                      type="text" placeholder="Senha do Aluno" 
+                      value={newStudentPass} onChange={(e) => setNewStudentPass(e.target.value)}
+                      style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ced6e0' }}
+                    />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button className="btn-primary" style={{ flex: 1, padding: '8px' }} onClick={() => handleCreateStudentAccount(cls.id)}>Salvar</button>
+                      <button className="btn-outline" style={{ padding: '8px' }} onClick={() => setSelectedClassId(null)}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="btn-secondary" style={{ width: '100%' }} onClick={() => setSelectedClassId(cls.id)}>
+                    Adicionar Alunos
+                  </button>
+                )}
               </div>
             ))}
           </div>

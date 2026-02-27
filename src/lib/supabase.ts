@@ -7,5 +7,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Faltam as variáveis de ambiente do Supabase no arquivo .env");
 }
 
-// Cria a conexão e exporta para o resto do aplicativo usar
+// Conexão principal (usada pelo app inteiro)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Conexão secundária (usada APENAS pelo professor para cadastrar alunos sem ser deslogado)
+export const supabaseHelper = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});

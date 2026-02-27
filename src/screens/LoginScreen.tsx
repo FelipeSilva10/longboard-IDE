@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase'; // Certifique-se de que o caminho está correto
 
 interface LoginScreenProps {
   onLogin: (role: 'student' | 'teacher' | 'visitor') => void;
@@ -8,10 +8,11 @@ interface LoginScreenProps {
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [loginType, setLoginType] = useState<'none' | 'student' | 'teacher'>('none');
   
-  // Novos estados para o Aluno
+  // Estados do Aluno
   const [studentUsername, setStudentUsername] = useState('');
   const [studentPass, setStudentPass] = useState('');
   
+  // Estados do Professor
   const [teacherEmail, setTeacherEmail] = useState(''); 
   const [teacherPass, setTeacherPass] = useState('');
   
@@ -27,10 +28,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setErrorMsg('');
     setLoading(true);
 
-    // 1. Monta o e-mail falso invisível (remove espaços e põe tudo em minúsculo)
+    // Usa o truque do e-mail fantasma
     const emailFormatado = `${studentUsername.trim().toLowerCase()}${DOMINIO_ALUNO}`;
 
-    // 2. Tenta fazer o login no Supabase
+    // Apenas TENTA fazer o login. Se a conta não existir, ele vai barrar.
     const { data, error } = await supabase.auth.signInWithPassword({
       email: emailFormatado,
       password: studentPass,
@@ -39,7 +40,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setLoading(false);
 
     if (error) {
-      setErrorMsg('Usuário ou senha incorretos!');
+      setErrorMsg('Usuário não existe ou senha incorreta! Fale com seu professor.');
       return;
     }
 
@@ -49,13 +50,26 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   const handleTeacherLogin = async () => {
-    // ... (Mantenha o código do professor exatamente como já estava)
+    if (!teacherEmail || !teacherPass) return;
+    
     setErrorMsg('');
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email: teacherEmail, password: teacherPass });
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ 
+      email: teacherEmail, 
+      password: teacherPass 
+    });
+    
     setLoading(false);
-    if (error) { setErrorMsg('Email ou senha incorretos!'); return; }
-    if (data.user) onLogin('teacher');
+    
+    if (error) { 
+      setErrorMsg('Email ou senha incorretos!'); 
+      return; 
+    }
+    
+    if (data.user) {
+      onLogin('teacher');
+    }
   };
 
   return (
@@ -72,10 +86,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
         )}
 
-        {/* --- NOVO FORMULÁRIO DO ALUNO --- */}
+        {/* Formulário do Aluno */}
         {loginType === 'student' && (
           <div className="login-form">
-            <h3>Login do Aluno</h3>
+            <h3>Acesso do Aluno</h3>
             {errorMsg && <div style={{ color: '#ff4757', fontWeight: 'bold' }}>{errorMsg}</div>}
             
             <input 
@@ -98,10 +112,29 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
         )}
 
-        {/* Formulário do Professor */}
+        {/* Formulário do Professor (COMPLETO DE NOVO) */}
         {loginType === 'teacher' && (
           <div className="login-form">
-            {/* ... (Mantenha o formulário do professor como estava) ... */}
+            <h3>Acesso do Professor</h3>
+            {errorMsg && <div style={{ color: '#ff4757', fontWeight: 'bold' }}>{errorMsg}</div>}
+            
+            <input 
+              type="email" 
+              placeholder="Seu Email..." 
+              value={teacherEmail} 
+              onChange={(e) => setTeacherEmail(e.target.value)} 
+            />
+            <input 
+              type="password" 
+              placeholder="Sua Senha..." 
+              value={teacherPass} 
+              onChange={(e) => setTeacherPass(e.target.value)} 
+            />
+            
+            <button className="btn-secondary" onClick={handleTeacherLogin} disabled={loading}>
+              {loading ? 'Validando...' : 'Acessar Painel'}
+            </button>
+            <button className="btn-text" onClick={() => setLoginType('none')}>Voltar</button>
           </div>
         )}
       </div>
