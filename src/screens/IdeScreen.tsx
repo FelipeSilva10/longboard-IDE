@@ -7,41 +7,40 @@ import { supabase } from '../lib/supabase';
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
 
+// --- A MÁGICA QUE CONSERTA O BUG DO "ESPERAR" E LAÇOS ---
+// Ensina o gerador a ler os blocos que estão "colados" debaixo dele
+cppGenerator.scrub_ = function(block, code, opt_thisOnly) {
+  const nextBlock = block.nextConnection && block.nextConnection.targetBlock();
+  const nextCode = opt_thisOnly ? '' : cppGenerator.blockToCode(nextBlock);
+  return code + nextCode;
+};
+
 const BOARDS = {
-  nano: { 
-    name: 'Arduino Nano', 
-    pins: [['D2', '2'], ['D3', '3'], ['D4', '4'], ['D5', '5'], ['D6', '6'], ['D7', '7'], ['D8', '8'], ['D9', '9'], ['D10', '10'], ['D11', '11'], ['D12', '12'], ['D13 (LED Interno)', '13']] 
-  },
-  esp32: { 
-    name: 'ESP32 DevKit', 
-    pins: [['GPIO 2 (LED)', '2'], ['GPIO 4', '4'], ['GPIO 5', '5'], ['GPIO 12', '12'], ['GPIO 13', '13'], ['GPIO 14', '14'], ['GPIO 15', '15'], ['GPIO 18', '18'], ['GPIO 19', '19'], ['GPIO 21', '21'], ['GPIO 22', '22'], ['GPIO 23', '23']] 
-  }
+  nano: { name: 'Arduino Nano', pins: [['D2', '2'], ['D3', '3'], ['D4', '4'], ['D5', '5'], ['D6', '6'], ['D7', '7'], ['D8', '8'], ['D9', '9'], ['D10', '10'], ['D11', '11'], ['D12', '12'], ['D13 (LED Interno)', '13']] },
+  esp32: { name: 'ESP32 DevKit', pins: [['GPIO 2 (LED)', '2'], ['GPIO 4', '4'], ['GPIO 5', '5'], ['GPIO 12', '12'], ['GPIO 13', '13'], ['GPIO 14', '14'], ['GPIO 15', '15'], ['GPIO 18', '18'], ['GPIO 19', '19'], ['GPIO 21', '21'], ['GPIO 22', '22'], ['GPIO 23', '23']] }
 };
 
 let currentBoardPins = BOARDS.nano.pins;
 
-// DEFINIÇÃO DOS BLOCOS CUSTOMIZADOS
+// BLOCOS
 if (!Blockly.Blocks['configurar_pino']) {
   const customBlocks = [
-    // --- OS DOIS BLOCOS MESTRES SEPARADOS ---
     {
       "type": "bloco_setup",
       "message0": "⚙️ PREPARAR (Roda 1 vez) %1",
       "args0": [{ "type": "input_statement", "name": "DO" }],
-      "colour": 290, // Roxo/Magenta
-      "tooltip": "Coloque aqui as configurações iniciais.",
+      "colour": 290,
+      "tooltip": "Configurações iniciais.",
       "helpUrl": ""
     },
     {
       "type": "bloco_loop",
       "message0": "🔄 AGIR (Roda para sempre) %1",
       "args0": [{ "type": "input_statement", "name": "DO" }],
-      "colour": 260, // Roxo escuro/Azulado
-      "tooltip": "Coloque aqui as ações que vão se repetir infinitamente.",
+      "colour": 260,
+      "tooltip": "Ações que vão se repetir.",
       "helpUrl": ""
     },
-
-    // --- BLOCOS DE AÇÃO ---
     {
       "type": "configurar_pino",
       "message0": "⚙️ Configurar pino %1 como %2",
@@ -63,9 +62,7 @@ if (!Blockly.Blocks['configurar_pino']) {
     {
       "type": "esperar",
       "message0": "⏱️ Esperar %1 milissegundos",
-      "args0": [
-        { "type": "field_number", "name": "TIME", "value": 1000, "min": 0 }
-      ],
+      "args0": [{ "type": "field_number", "name": "TIME", "value": 1000, "min": 0 }],
       "previousStatement": null, "nextStatement": null, "colour": 120
     },
     {
@@ -81,17 +78,14 @@ if (!Blockly.Blocks['configurar_pino']) {
   ];
   Blockly.defineBlocksWithJsonArray(customBlocks);
 
-  // --- TRADUÇÃO DOS BLOCOS MESTRES PARA C++ ---
   cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
     const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n';
     return `void setup() {\n${branch}}\n\n`;
   };
-
   cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) {
     const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas ações principais entrarão aqui...\n';
     return `void loop() {\n${branch}}\n\n`;
   };
-
   cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
     return `  pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`;
   };
@@ -104,32 +98,15 @@ if (!Blockly.Blocks['configurar_pino']) {
   cppGenerator.forBlock['repetir_vezes'] = function(block: Blockly.Block) {
     const times = block.getFieldValue('TIMES');
     const branch = cppGenerator.statementToCode(block, 'DO') || '';
-    return `  for (int i = 0; i < ${times}; i++) {\n  ${branch}  }\n`;
+    return `  for (int i = 0; i < ${times}; i++) {\n${branch}  }\n`;
   };
 }
 
-// Os Blocos Mestres não ficam no Toolbox, eles nascem na tela!
 const toolboxConfig = {
   kind: 'categoryToolbox',
   contents: [
-    {
-      kind: 'category',
-      name: '🔌 Pinos & LEDs',
-      colour: '230',
-      contents: [
-        { kind: 'block', type: 'configurar_pino' },
-        { kind: 'block', type: 'escrever_pino' }
-      ]
-    },
-    {
-      kind: 'category',
-      name: '⚙️ Controle',
-      colour: '120',
-      contents: [
-        { kind: 'block', type: 'esperar' },
-        { kind: 'block', type: 'repetir_vezes' }
-      ]
-    }
+    { kind: 'category', name: '🔌 Pinos & LEDs', colour: '230', contents: [{ kind: 'block', type: 'configurar_pino' }, { kind: 'block', type: 'escrever_pino' }] },
+    { kind: 'category', name: '⚙️ Controle', colour: '120', contents: [{ kind: 'block', type: 'esperar' }, { kind: 'block', type: 'repetir_vezes' }] }
   ]
 };
 
@@ -145,12 +122,30 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   
   const [board, setBoard] = useState<'nano' | 'esp32'>('nano');
   const [generatedCode, setGeneratedCode] = useState<string>('// O código C++ aparecerá aqui...');
-  
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState('Projeto');
-  
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // ESTADO DA ABA DE CÓDIGO
+  const [isCodeVisible, setIsCodeVisible] = useState(false); // Oculto por padrão para dar espaço
+
+// TEMA CUSTOMIZADO DA OFICINA CODE PARA O MENU
+  const oficinaTheme = Blockly.Theme.defineTheme('oficinaTheme', {
+    name: 'oficinaTheme', // <--- A MÁGICA PARA O TYPESCRIPT PARAR DE RECLAMAR ESTÁ AQUI
+    base: Blockly.Themes.Classic,
+    componentStyles: {
+      workspaceBackgroundColour: '#f4f7f6',
+      toolboxBackgroundColour: '#2f3542', /* Azul Marinho da marca */
+      toolboxForegroundColour: '#ffffff',
+      flyoutBackgroundColour: '#3b4252',
+      flyoutForegroundColour: '#ffffff',
+      flyoutOpacity: 1,
+      scrollbarColour: '#a4b0be',
+      insertionMarkerColour: '#ffffff',
+      insertionMarkerOpacity: 0.3,
+    }
+  });
 
   useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
 
@@ -160,10 +155,18 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         toolbox: toolboxConfig, 
         grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
         readOnly: role === 'teacher' && projectId !== undefined,
-        move: { scrollbars: true, drag: true, wheel: true }
+        move: { scrollbars: true, drag: true, wheel: true },
+        theme: oficinaTheme, // Aplica o tema visual elegante
+        zoom: { // ADICIONA OS CONTROLES DE ZOOM
+          controls: true,
+          wheel: true,
+          startScale: 1.0,
+          maxScale: 3,
+          minScale: 0.3,
+          scaleSpeed: 1.2
+        },
       });
 
-      // LÓGICA DE GERAÇÃO C++
       workspace.current.addChangeListener((event) => {
         if (event.isUiEvent) return; 
         try {
@@ -172,27 +175,25 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         } catch (e) { console.error(e); }
       });
 
-      // FUNÇÃO PARA GARANTIR QUE OS DOIS BLOCOS MESTRES EXISTEM E SÃO INQUEBRÁVEIS
       const ensureRootBlocks = () => {
         if (!workspace.current) return;
-        
         let setupBlock = workspace.current.getTopBlocks(false).find(b => b.type === 'bloco_setup');
         if (!setupBlock) {
           setupBlock = workspace.current.newBlock('bloco_setup');
-          setupBlock.moveBy(50, 50); // Canto superior esquerdo
+          setupBlock.moveBy(50, 50); 
           setupBlock.initSvg();
           setupBlock.render();
         }
-        setupBlock.setDeletable(false); // Impede de apagar
+        setupBlock.setDeletable(false); 
 
         let loopBlock = workspace.current.getTopBlocks(false).find(b => b.type === 'bloco_loop');
         if (!loopBlock) {
           loopBlock = workspace.current.newBlock('bloco_loop');
-          loopBlock.moveBy(450, 50); // Coloca ao lado do Setup, dando espaço para os blocos crescerem
+          loopBlock.moveBy(450, 50); 
           loopBlock.initSvg();
           loopBlock.render();
         }
-        loopBlock.setDeletable(false); // Impede de apagar
+        loopBlock.setDeletable(false); 
       };
 
       if (projectId) {
@@ -201,25 +202,20 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
           if (data && !error) {
             setProjectName(data.name);
             if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
-            
-            // Tenta carregar. Se falhar ou for um projeto criado antes dessa atualização, apenas injeta os novos blocos
             try {
               if (data.workspace_data && Object.keys(data.workspace_data).length > 0) {
                 Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!);
               }
             } catch (err) { console.log("Dados do workspace antigos ignorados."); }
-            
             ensureRootBlocks(); 
           }
         };
         loadProject();
-      } else {
-        ensureRootBlocks();
-      }
+      } else { ensureRootBlocks(); }
     }
   }, [projectId, role]);
 
-  useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role]);
+  useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role, isCodeVisible]);
 
   const handleSaveProject = async () => {
     if (!projectId || !workspace.current) return;
@@ -246,32 +242,35 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
            'Oficina Code'}
         </h2>
 
-        <div style={{ display: 'flex', gap: '10px', backgroundColor: '#eef2f5', padding: '6px 12px', borderRadius: '12px', flexWrap: 'wrap' }}>
-          
-          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} disabled={role === 'teacher' && projectId !== undefined} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #d1d8e0', margin: 0 }}>
+        <div style={{ display: 'flex', gap: '10px', backgroundColor: '#eef2f5', padding: '5px 10px', borderRadius: '12px', flexWrap: 'wrap' }}>
+          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} disabled={role === 'teacher' && projectId !== undefined} style={{ margin: 0 }}>
             <option value="nano">🖥️ Arduino Nano</option>
             <option value="esp32">📡 ESP32 DevKit</option>
           </select>
-
-          <select style={{ padding: '8px', borderRadius: '8px', border: '1px solid #d1d8e0', margin: 0 }}>
-            <option value="">🔌 Selecionar Porta COM...</option>
-            <option value="COM3">COM3 (USB-SERIAL CH340)</option>
-            <option value="COM4">COM4 (Dispositivo Desconhecido)</option>
+          <select style={{ margin: 0 }}>
+            <option value="">🔌 Porta COM...</option>
+            <option value="COM3">COM3 (USB-SERIAL)</option>
           </select>
-
-          <button className="btn-primary" onClick={() => alert('Em breve: Enviar código para a placa!')} style={{ margin: 0, padding: '8px 15px', backgroundColor: 'var(--secondary)', border: 'none', boxShadow: '0 4px 0px #3aa828' }}>
+          <button className="btn-primary" onClick={() => alert('Em breve: Enviar código para a placa!')} style={{ margin: 0, backgroundColor: 'var(--secondary)', border: 'none', boxShadow: '0 4px 0px #3aa828' }}>
             🚀 Enviar
           </button>
         </div>
         
         <div style={{ display: 'flex', gap: '10px' }}>
+          
+          {/* BOTÃO QUE EXIBE/OCULTA O CÓDIGO */}
+          <button className="btn-secondary" onClick={() => setIsCodeVisible(!isCodeVisible)} style={{ margin: 0, backgroundColor: '#34495e', boxShadow: '0 4px 0px #2c3e50' }}>
+            {isCodeVisible ? '🙈 Ocultar Código' : '💻 Ver Código'}
+          </button>
+
           {role === 'student' && projectId && (
-            <button className="btn-primary" onClick={handleSaveProject} disabled={isSaving} style={{ padding: '10px 20px', margin: 0 }}>
+            <button className="btn-primary" onClick={handleSaveProject} disabled={isSaving} style={{ margin: 0 }}>
               {isSaving ? '⏳ A gravar...' : '💾 Salvar'}
             </button>
           )}
 
-          <button className="btn-outline" onClick={onBack} style={{ borderColor: 'var(--danger)', color: 'var(--danger)', padding: '10px 20px', margin: 0, boxShadow: 'none' }}>
+          {/* O Botão voltar não tem mais a cor vermelha forçada na tag inline, usando apenas a classe */}
+          <button className="btn-outline" onClick={onBack} style={{ margin: 0 }}>
             Voltar
           </button>
         </div>
@@ -280,7 +279,9 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
       {/* ÁREA DE TRABALHO */}
       <div className="workspace-area">
         <div ref={blocklyDiv} id="blocklyDiv" />
-        {role === 'teacher' && (
+        
+        {/* Renderiza o painel de código dependendo do botão "Ver Código" */}
+        {isCodeVisible && (
           <div className="code-panel">
             <h3>Código (C++)</h3>
             <pre>{generatedCode}</pre>
@@ -288,16 +289,14 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         )}
       </div>
 
-      {/* MODAIS */}
+      {/* MODAIS (MANTIDOS IGUAIS) */}
       {saveStatus === 'success' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>✅</div>
             <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Projeto Salvo!</h2>
-            <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1.1rem' }}>As suas peças e progressos foram guardados na nuvem com sucesso.</p>
-            <button className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }} onClick={() => setSaveStatus(null)}>
-              Continuar
-            </button>
+            <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1.1rem' }}>As suas peças e progressos foram guardados na nuvem.</p>
+            <button className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }} onClick={() => setSaveStatus(null)}>Continuar</button>
           </div>
         </div>
       )}
@@ -308,9 +307,7 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
             <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>❌</div>
             <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Ocorreu um Erro</h2>
             <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1rem' }}>{errorMessage}</p>
-            <button className="btn-outline" style={{ width: '100%', padding: '14px', borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => setSaveStatus(null)}>
-              Tentar Novamente
-            </button>
+            <button className="btn-outline" style={{ width: '100%', padding: '14px' }} onClick={() => setSaveStatus(null)}>Tentar Novamente</button>
           </div>
         </div>
       )}

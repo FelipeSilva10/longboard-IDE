@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Oficina Code",
+        "title": "Oficina Code (versão alpha)",
         "width": 1000,
         "height": 800
       }
