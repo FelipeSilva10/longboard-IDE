@@ -22,16 +22,25 @@ function App() {
     setActiveProjectId(undefined);
   };
 
-  // --- NOVA FUNÇÃO: Voltar ao painel certo ---
   const handleBackToDashboard = () => {
     if (currentRole === 'teacher') setCurrentRole('teacher-dashboard');
     else if (currentRole === 'student') setCurrentRole('student-dashboard');
-    else handleLogout(); // Visitante sai direto
+    else handleLogout(); 
   };
 
   if (currentRole === 'guest') return <LoginScreen onLogin={handleLogin} />;
   
-  if (currentRole === 'teacher-dashboard') return <TeacherDashboard onLogout={handleLogout} onOpenIde={() => setCurrentRole('teacher')} />;
+  if (currentRole === 'teacher-dashboard') {
+    return (
+      <TeacherDashboard 
+        onLogout={handleLogout} 
+        onOpenIde={(projectId) => {
+          setActiveProjectId(projectId); // Guarda o ID do projeto do aluno
+          setCurrentRole('teacher');     // Envia o professor para a IDE
+        }} 
+      />
+    );
+  }
   
   if (currentRole === 'student-dashboard') {
     return (
@@ -45,8 +54,7 @@ function App() {
     );
   }
 
-// Substitua a penúltima linha do seu App.tsx por isto:
-return <IdeScreen role={currentRole} onBack={handleBackToDashboard} projectId={activeProjectId} />;
+  return <IdeScreen role={currentRole} onBack={handleBackToDashboard} projectId={activeProjectId} />;
 }
 
 export default App;

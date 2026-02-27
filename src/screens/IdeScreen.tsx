@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
 import * as PtBr from 'blockly/msg/pt-br';
-import { supabase } from '../lib/supabase'; // Importámos o Supabase!
+import { supabase } from '../lib/supabase'; 
 
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
@@ -32,7 +32,6 @@ cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
   return `pinMode(${pin}, ${mode});\n`;
 };
 
-// Adicionámos o projectId aqui!
 interface IdeScreenProps {
   role: 'student' | 'teacher' | 'visitor';
   onBack: () => void; 
@@ -46,17 +45,22 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const [board, setBoard] = useState<'nano' | 'esp32'>('nano');
   const [generatedCode, setGeneratedCode] = useState<string>('// O código C++ aparecerá aqui...');
   
-  // Novos estados para o sistema de guardar
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState('Projeto');
+  
+  // Novo Estado para a Tela Bonita de Sucesso/Erro
+  const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspace.current) {
+      // Injeta o Blockly no ecrã e desativa a edição se o professor estiver a ver
       workspace.current = Blockly.inject(blocklyDiv.current, {
         toolbox: { kind: 'flyoutToolbox', contents: [{ kind: 'block', type: 'configurar_pino' }] },
         grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
+        readOnly: role === 'teacher' && projectId !== undefined // Se for prof a ver projeto, não deixa editar
       });
 
       workspace.current.addChangeListener((event) => {
@@ -67,7 +71,6 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         } catch (e) { console.error(e); }
       });
 
-      // --- MÁGICA 1: CARREGAR PROJETO SE EXISTIR ---
       if (projectId) {
         const loadProject = async () => {
           const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
@@ -76,7 +79,6 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
             setProjectName(data.name);
             if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
             
-            // Se já tiver peças guardadas no banco, injeta elas na tela
             if (data.workspace_data && Object.keys(data.workspace_data).length > 0) {
               Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!);
             }
@@ -85,16 +87,14 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         loadProject();
       }
     }
-  }, [projectId]);
+  }, [projectId, role]);
 
   useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role]);
 
-  // --- MÁGICA 2: GRAVAR PROJETO ---
   const handleSaveProject = async () => {
     if (!projectId || !workspace.current) return;
     setIsSaving(true);
 
-    // O Blockly transforma todas as peças da tela num objeto JSON
     const workspaceData = Blockly.serialization.workspaces.save(workspace.current);
 
     const { error } = await supabase
@@ -102,16 +102,17 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
       .update({ 
         workspace_data: workspaceData, 
         target_board: board,
-        updated_at: new Date().toISOString() // Atualiza a hora para subir no painel
+        updated_at: new Date().toISOString() 
       })
       .eq('id', projectId);
 
     setIsSaving(false);
 
     if (!error) {
-      alert("✅ Peças salvas com sucesso!");
+      setSaveStatus('success');
     } else {
-      alert("❌ Erro ao salvar: " + error.message);
+      setErrorMessage(error.message);
+      setSaveStatus('error');
     }
   };
 
@@ -120,22 +121,21 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
       <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           
-          {/* Mostra o nome real do projeto se for aluno */}
           <h2 style={{ margin: 0 }}>
-            {role === 'student' && projectId ? `Mesa: ${projectName}` : 'Longboard IDE'}
+            {/* O Título Adapta-se se for o Aluno ou o Professor a espreitar */}
+            {role === 'student' && projectId ? `Mesa: ${projectName}` : 
+             role === 'teacher' && projectId ? `👀 Inspecionando: ${projectName}` : 
+             'Longboard IDE'}
             <span style={{ fontSize: '1rem', color: '#7f8c8d', marginLeft: '10px' }}>({role})</span>
           </h2>
 
-          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} style={{ margin: 0 }}>
+          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} style={{ margin: 0 }} disabled={role === 'teacher' && projectId !== undefined}>
             <option value="nano">🖥️ Arduino Nano</option>
             <option value="esp32">📡 ESP32 DevKit</option>
           </select>
         </div>
         
-        {/* Nova área de botões à direita */}
         <div style={{ display: 'flex', gap: '10px' }}>
-          
-          {/* O botão "Salvar" só aparece se a pessoa for Aluno e tiver aberto um projeto */}
           {role === 'student' && projectId && (
             <button className="btn-primary" onClick={handleSaveProject} disabled={isSaving} style={{ padding: '10px 20px', margin: 0 }}>
               {isSaving ? '⏳ A gravar...' : '💾 Salvar Projeto'}
@@ -157,6 +157,34 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
           </div>
         )}
       </div>
+
+      {/* MODAL BONITO DE SUCESSO AO SALVAR */}
+      {saveStatus === 'success' && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
+          <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>✅</div>
+            <h2 style={{ color: '#2c3e50', marginBottom: '15px' }}>Projeto Salvo!</h2>
+            <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1.1rem' }}>As suas peças e progressos foram guardados na nuvem com sucesso.</p>
+            <button className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }} onClick={() => setSaveStatus(null)}>
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL BONITO DE ERRO */}
+      {saveStatus === 'error' && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
+          <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>❌</div>
+            <h2 style={{ color: '#2c3e50', marginBottom: '15px' }}>Ocorreu um Erro</h2>
+            <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1rem' }}>{errorMessage}</p>
+            <button className="btn-outline" style={{ width: '100%', padding: '14px', borderColor: '#ff4757', color: '#ff4757' }} onClick={() => setSaveStatus(null)}>
+              Tentar Novamente
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,9 +5,9 @@ interface Classroom { id: string; name: string; }
 interface Student { id: string; name: string; }
 interface Project { id: string; name: string; }
 
-interface TeacherDashboardProps { onLogout: () => void; onOpenIde: () => void; }
+// Adicionamos a opção de passar o projectId
+interface TeacherDashboardProps { onLogout: () => void; onOpenIde: (projectId?: string) => void; }
 
-// Tipo para controlar o Modal Universal de Exclusão
 type DeleteAction = { type: 'class' | 'student' | 'project'; id: string; name: string } | null;
 
 export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps) {
@@ -25,7 +25,6 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
   const [viewingStudentProjects, setViewingStudentProjects] = useState<string | null>(null);
   const [studentProjects, setStudentProjects] = useState<Project[]>([]);
 
-  // Estado do Modal de Exclusão
   const [itemToDelete, setItemToDelete] = useState<DeleteAction>(null);
 
   const fetchClassrooms = async () => {
@@ -86,7 +85,6 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
     if (data) setStudentProjects(data);
   };
 
-  // --- FUNÇÃO UNIVERSAL DE EXCLUSÃO ---
   const confirmDeletion = async () => {
     if (!itemToDelete) return;
 
@@ -104,17 +102,15 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
       setStudentProjects(prev => prev.filter(p => p.id !== itemToDelete.id));
     }
 
-    setItemToDelete(null); // Fecha o modal
+    setItemToDelete(null); 
   };
 
   return (
     <div className="app-container" style={{ backgroundColor: '#f4f7f6', overflowY: 'auto' }}>
-      
-      {/* Topo Alinhado */}
       <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>Painel do Professor</h2>
         <div style={{ display: 'flex', gap: '15px' }}>
-          <button className="btn-secondary" style={{ padding: '10px 20px', margin: 0 }} onClick={onOpenIde}>Abrir IDE (Teste)</button>
+          <button className="btn-secondary" style={{ padding: '10px 20px', margin: 0 }} onClick={() => onOpenIde()}>Abrir IDE (Teste)</button>
           <button className="btn-outline" style={{ borderColor: '#ff4757', color: '#ff4757', padding: '10px 20px', margin: 0 }} onClick={onLogout}>Sair</button>
         </div>
       </div>
@@ -149,7 +145,6 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
         )}
       </div>
 
-      {/* GERENCIADOR DE ALUNOS */}
       {managingClass && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 50 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
@@ -200,7 +195,8 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
                             <div key={proj.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '10px', borderRadius: '8px', marginBottom: '5px' }}>
                               <span style={{ color: '#2c3e50', fontSize: '0.95rem' }}>📄 {proj.name}</span>
                               <div style={{ display: 'flex', gap: '5px' }}>
-                                <button className="btn-outline" style={{ padding: '4px 8px', fontSize: '0.8rem', color: '#4cd137', borderColor: '#4cd137' }} onClick={() => alert('Em breve: abrir projeto')}>Ver</button>
+                                {/* --- A MÁGICA ACONTECE AQUI! Ao clicar, ele abre o projeto do aluno --- */}
+                                <button className="btn-outline" style={{ padding: '4px 8px', fontSize: '0.8rem', color: '#4cd137', borderColor: '#4cd137' }} onClick={() => onOpenIde(proj.id)}>Ver Código</button>
                                 <button className="btn-outline" style={{ padding: '4px 8px', fontSize: '0.8rem', color: '#ff4757', borderColor: '#ff4757' }} onClick={() => setItemToDelete({ type: 'project', id: proj.id, name: proj.name })}>🗑️</button>
                               </div>
                             </div>
@@ -217,7 +213,6 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
         </div>
       )}
 
-      {/* MODAL UNIVERSAL DE EXCLUSÃO (Por cima de tudo) */}
       {itemToDelete && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '24px', width: '90%', maxWidth: '420px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.4)' }}>
