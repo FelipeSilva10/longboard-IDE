@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase';
+import { supabase } from '../lib/supabase';
 
 interface Classroom { id: string; name: string; }
 interface Student { id: string; name: string; }
@@ -60,7 +60,7 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
 
   const handleCreateStudentAccount = async () => {
     if (!newStudentName || !newStudentPass || !managingClass) return;
-    const { supabaseHelper } = await import('./lib/supabase');
+    const { supabaseHelper } = await import('../lib/supabase');
     const emailFormatado = `${newStudentName.trim().toLowerCase()}@aluno.longboard.com`;
     const { data: authData, error: authError } = await supabaseHelper.auth.signUp({ email: emailFormatado, password: newStudentPass });
     

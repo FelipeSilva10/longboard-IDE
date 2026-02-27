@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LoginScreen } from './screens/LoginScreen';
 import { IdeScreen } from './screens/IdeScreen';
-import { TeacherDashboard } from "./TeacherDashboard";
+import { TeacherDashboard } from "./screens/TeacherDashboard";
 import { StudentDashboard } from "./screens/StudentDashboard";
 import './App.css';
 
