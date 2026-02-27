@@ -3,12 +3,11 @@ import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
 import * as PtBr from 'blockly/msg/pt-br';
 import { supabase } from '../lib/supabase'; 
+import logoSimples from '../assets/LogoSimples.png'; // <-- 5. Logo importada aqui!
 
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
 
-// --- A MÁGICA QUE CONSERTA O BUG DO "ESPERAR" E LAÇOS ---
-// Ensina o gerador a ler os blocos que estão "colados" debaixo dele
 cppGenerator.scrub_ = function(block, code, opt_thisOnly) {
   const nextBlock = block.nextConnection && block.nextConnection.targetBlock();
   const nextCode = opt_thisOnly ? '' : cppGenerator.blockToCode(nextBlock);
@@ -22,84 +21,23 @@ const BOARDS = {
 
 let currentBoardPins = BOARDS.nano.pins;
 
-// BLOCOS
 if (!Blockly.Blocks['configurar_pino']) {
   const customBlocks = [
-    {
-      "type": "bloco_setup",
-      "message0": "⚙️ PREPARAR (Roda 1 vez) %1",
-      "args0": [{ "type": "input_statement", "name": "DO" }],
-      "colour": 290,
-      "tooltip": "Configurações iniciais.",
-      "helpUrl": ""
-    },
-    {
-      "type": "bloco_loop",
-      "message0": "🔄 AGIR (Roda para sempre) %1",
-      "args0": [{ "type": "input_statement", "name": "DO" }],
-      "colour": 260,
-      "tooltip": "Ações que vão se repetir.",
-      "helpUrl": ""
-    },
-    {
-      "type": "configurar_pino",
-      "message0": "⚙️ Configurar pino %1 como %2",
-      "args0": [
-        { "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins },
-        { "type": "field_dropdown", "name": "MODE", "options": [["Saída (Enviar sinal)", "OUTPUT"], ["Entrada (Ler sensor)", "INPUT"]] }
-      ],
-      "previousStatement": null, "nextStatement": null, "colour": 230
-    },
-    {
-      "type": "escrever_pino",
-      "message0": "💡 Colocar pino %1 em estado %2",
-      "args0": [
-        { "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins },
-        { "type": "field_dropdown", "name": "STATE", "options": [["Ligado (HIGH)", "HIGH"], ["Desligado (LOW)", "LOW"]] }
-      ],
-      "previousStatement": null, "nextStatement": null, "colour": 230
-    },
-    {
-      "type": "esperar",
-      "message0": "⏱️ Esperar %1 milissegundos",
-      "args0": [{ "type": "field_number", "name": "TIME", "value": 1000, "min": 0 }],
-      "previousStatement": null, "nextStatement": null, "colour": 120
-    },
-    {
-      "type": "repetir_vezes",
-      "message0": "🔁 Repetir %1 vezes %2 %3",
-      "args0": [
-        { "type": "field_number", "name": "TIMES", "value": 5, "min": 1 },
-        { "type": "input_dummy" },
-        { "type": "input_statement", "name": "DO" }
-      ],
-      "previousStatement": null, "nextStatement": null, "colour": 120
-    }
+    { "type": "bloco_setup", "message0": "⚙️ PREPARAR (Roda 1 vez) %1", "args0": [{ "type": "input_statement", "name": "DO" }], "colour": 290, "tooltip": "Configurações iniciais.", "helpUrl": "" },
+    { "type": "bloco_loop", "message0": "🔄 AGIR (Roda para sempre) %1", "args0": [{ "type": "input_statement", "name": "DO" }], "colour": 260, "tooltip": "Ações que vão se repetir.", "helpUrl": "" },
+    { "type": "configurar_pino", "message0": "⚙️ Configurar pino %1 como %2", "args0": [{ "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins }, { "type": "field_dropdown", "name": "MODE", "options": [["Saída (Enviar sinal)", "OUTPUT"], ["Entrada (Ler sensor)", "INPUT"]] }], "previousStatement": null, "nextStatement": null, "colour": 230 },
+    { "type": "escrever_pino", "message0": "💡 Colocar pino %1 em estado %2", "args0": [{ "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins }, { "type": "field_dropdown", "name": "STATE", "options": [["Ligado (HIGH)", "HIGH"], ["Desligado (LOW)", "LOW"]] }], "previousStatement": null, "nextStatement": null, "colour": 230 },
+    { "type": "esperar", "message0": "⏱️ Esperar %1 milissegundos", "args0": [{ "type": "field_number", "name": "TIME", "value": 1000, "min": 0 }], "previousStatement": null, "nextStatement": null, "colour": 120 },
+    { "type": "repetir_vezes", "message0": "🔁 Repetir %1 vezes %2 %3", "args0": [{ "type": "field_number", "name": "TIMES", "value": 5, "min": 1 }, { "type": "input_dummy" }, { "type": "input_statement", "name": "DO" }], "previousStatement": null, "nextStatement": null, "colour": 120 }
   ];
   Blockly.defineBlocksWithJsonArray(customBlocks);
 
-  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
-    const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n';
-    return `void setup() {\n${branch}}\n\n`;
-  };
-  cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) {
-    const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas ações principais entrarão aqui...\n';
-    return `void loop() {\n${branch}}\n\n`;
-  };
-  cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
-    return `  pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`;
-  };
-  cppGenerator.forBlock['escrever_pino'] = function(block: Blockly.Block) {
-    return `  digitalWrite(${block.getFieldValue('PIN')}, ${block.getFieldValue('STATE')});\n`;
-  };
-  cppGenerator.forBlock['esperar'] = function(block: Blockly.Block) {
-    return `  delay(${block.getFieldValue('TIME')});\n`;
-  };
-  cppGenerator.forBlock['repetir_vezes'] = function(block: Blockly.Block) {
-    const times = block.getFieldValue('TIMES');
-    const branch = cppGenerator.statementToCode(block, 'DO') || '';
-    return `  for (int i = 0; i < ${times}; i++) {\n${branch}  }\n`;
-  };
+  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) { return `void setup() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n'}}\n\n`; };
+  cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) { return `void loop() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas ações principais entrarão aqui...\n'}}\n\n`; };
+  cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) { return `  pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`; };
+  cppGenerator.forBlock['escrever_pino'] = function(block: Blockly.Block) { return `  digitalWrite(${block.getFieldValue('PIN')}, ${block.getFieldValue('STATE')});\n`; };
+  cppGenerator.forBlock['esperar'] = function(block: Blockly.Block) { return `  delay(${block.getFieldValue('TIME')});\n`; };
+  cppGenerator.forBlock['repetir_vezes'] = function(block: Blockly.Block) { return `  for (int i = 0; i < ${block.getFieldValue('TIMES')}; i++) {\n${cppGenerator.statementToCode(block, 'DO') || ''}  }\n`; };
 }
 
 const toolboxConfig = {
@@ -110,11 +48,7 @@ const toolboxConfig = {
   ]
 };
 
-interface IdeScreenProps {
-  role: 'student' | 'teacher' | 'visitor';
-  onBack: () => void; 
-  projectId?: string; 
-}
+interface IdeScreenProps { role: 'student' | 'teacher' | 'visitor'; onBack: () => void; projectId?: string; }
 
 export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const blocklyDiv = useRef<HTMLDivElement>(null);
@@ -127,24 +61,12 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // ESTADO DA ABA DE CÓDIGO
-  const [isCodeVisible, setIsCodeVisible] = useState(false); // Oculto por padrão para dar espaço
+  const [isCodeVisible, setIsCodeVisible] = useState(false); 
+  const [isFullscreenCode, setIsFullscreenCode] = useState(false); // <-- 3. Estado da Tela Cheia
 
-// TEMA CUSTOMIZADO DA OFICINA CODE PARA O MENU
   const oficinaTheme = Blockly.Theme.defineTheme('oficinaTheme', {
-    name: 'oficinaTheme', // <--- A MÁGICA PARA O TYPESCRIPT PARAR DE RECLAMAR ESTÁ AQUI
-    base: Blockly.Themes.Classic,
-    componentStyles: {
-      workspaceBackgroundColour: '#f4f7f6',
-      toolboxBackgroundColour: '#2f3542', /* Azul Marinho da marca */
-      toolboxForegroundColour: '#ffffff',
-      flyoutBackgroundColour: '#3b4252',
-      flyoutForegroundColour: '#ffffff',
-      flyoutOpacity: 1,
-      scrollbarColour: '#a4b0be',
-      insertionMarkerColour: '#ffffff',
-      insertionMarkerOpacity: 0.3,
-    }
+    name: 'oficinaTheme', base: Blockly.Themes.Classic,
+    componentStyles: { workspaceBackgroundColour: '#f4f7f6', toolboxBackgroundColour: '#2f3542', toolboxForegroundColour: '#ffffff', flyoutBackgroundColour: '#3b4252', flyoutForegroundColour: '#ffffff', flyoutOpacity: 1, scrollbarColour: '#a4b0be', insertionMarkerColour: '#ffffff', insertionMarkerOpacity: 0.3, }
   });
 
   useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
@@ -152,47 +74,25 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   useEffect(() => {
     if (blocklyDiv.current && !workspace.current) {
       workspace.current = Blockly.inject(blocklyDiv.current, {
-        toolbox: toolboxConfig, 
-        grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
+        toolbox: toolboxConfig, grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
         readOnly: role === 'teacher' && projectId !== undefined,
         move: { scrollbars: true, drag: true, wheel: true },
-        theme: oficinaTheme, // Aplica o tema visual elegante
-        zoom: { // ADICIONA OS CONTROLES DE ZOOM
-          controls: true,
-          wheel: true,
-          startScale: 1.0,
-          maxScale: 3,
-          minScale: 0.3,
-          scaleSpeed: 1.2
-        },
+        theme: oficinaTheme, zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
       });
 
       workspace.current.addChangeListener((event) => {
         if (event.isUiEvent) return; 
-        try {
-          const code = cppGenerator.workspaceToCode(workspace.current!);
-          setGeneratedCode(code || '// Arraste blocos para dentro de PREPARAR e AGIR!');
-        } catch (e) { console.error(e); }
+        try { setGeneratedCode(cppGenerator.workspaceToCode(workspace.current!) || '// Arraste blocos para dentro de PREPARAR e AGIR!'); } catch (e) { console.error(e); }
       });
 
       const ensureRootBlocks = () => {
         if (!workspace.current) return;
         let setupBlock = workspace.current.getTopBlocks(false).find(b => b.type === 'bloco_setup');
-        if (!setupBlock) {
-          setupBlock = workspace.current.newBlock('bloco_setup');
-          setupBlock.moveBy(50, 50); 
-          setupBlock.initSvg();
-          setupBlock.render();
-        }
+        if (!setupBlock) { setupBlock = workspace.current.newBlock('bloco_setup'); setupBlock.moveBy(50, 50); setupBlock.initSvg(); setupBlock.render(); }
         setupBlock.setDeletable(false); 
 
         let loopBlock = workspace.current.getTopBlocks(false).find(b => b.type === 'bloco_loop');
-        if (!loopBlock) {
-          loopBlock = workspace.current.newBlock('bloco_loop');
-          loopBlock.moveBy(450, 50); 
-          loopBlock.initSvg();
-          loopBlock.render();
-        }
+        if (!loopBlock) { loopBlock = workspace.current.newBlock('bloco_loop'); loopBlock.moveBy(450, 50); loopBlock.initSvg(); loopBlock.render(); }
         loopBlock.setDeletable(false); 
       };
 
@@ -200,68 +100,64 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         const loadProject = async () => {
           const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
           if (data && !error) {
-            setProjectName(data.name);
-            if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
-            try {
-              if (data.workspace_data && Object.keys(data.workspace_data).length > 0) {
-                Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!);
-              }
-            } catch (err) { console.log("Dados do workspace antigos ignorados."); }
+            setProjectName(data.name); if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
+            try { if (data.workspace_data && Object.keys(data.workspace_data).length > 0) Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!); } catch (err) { }
             ensureRootBlocks(); 
           }
-        };
-        loadProject();
+        }; loadProject();
       } else { ensureRootBlocks(); }
     }
   }, [projectId, role]);
 
-  useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role, isCodeVisible]);
+  useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role, isCodeVisible, isFullscreenCode]);
 
   const handleSaveProject = async () => {
     if (!projectId || !workspace.current) return;
     setIsSaving(true);
-    const workspaceData = Blockly.serialization.workspaces.save(workspace.current);
-    const { error } = await supabase.from('projects')
-      .update({ workspace_data: workspaceData, target_board: board, updated_at: new Date().toISOString() })
-      .eq('id', projectId);
-
+    const { error } = await supabase.from('projects').update({ workspace_data: Blockly.serialization.workspaces.save(workspace.current), target_board: board, updated_at: new Date().toISOString() }).eq('id', projectId);
     setIsSaving(false);
-    if (!error) setSaveStatus('success');
-    else { setErrorMessage(error.message); setSaveStatus('error'); }
+    if (!error) setSaveStatus('success'); else { setErrorMessage(error.message); setSaveStatus('error'); }
   };
 
   return (
     <div className="app-container">
       
-      {/* COCKPIT DE CONTROLE */}
+      {/* BARRA SUPERIOR (TOPBAR) */}
       <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '15px' }}>
         
-        <h2 style={{ margin: 0, minWidth: 'fit-content' }}>
-          {role === 'student' && projectId ? `Mesa: ${projectName}` : 
-           role === 'teacher' && projectId ? `👀 Inspecionando: ${projectName}` : 
-           'Oficina Code'}
-        </h2>
+        {/* 5. A Logo substitui o texto "Oficina Code" */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: 'fit-content' }}>
+          <img src={logoSimples} alt="Oficina Code" style={{ height: '35px' }} />
+          {projectId && (
+            <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--dark)' }}>
+              {role === 'student' ? `Mesa: ${projectName}` : `👀 Inspecionando: ${projectName}`}
+            </h2>
+          )}
+        </div>
 
-        <div style={{ display: 'flex', gap: '10px', backgroundColor: '#eef2f5', padding: '5px 10px', borderRadius: '12px', flexWrap: 'wrap' }}>
-          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} disabled={role === 'teacher' && projectId !== undefined} style={{ margin: 0 }}>
+        {/* 2. Menu de Hardware Compacto e Alinhado via CSS */}
+        <div className="hardware-controls">
+          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} disabled={role === 'teacher' && projectId !== undefined}>
             <option value="nano">🖥️ Arduino Nano</option>
-            <option value="esp32">📡 ESP32 DevKit</option>
+            <option value="esp32">📡 ESP32</option>
           </select>
-          <select style={{ margin: 0 }}>
+          <select>
             <option value="">🔌 Porta COM...</option>
-            <option value="COM3">COM3 (USB-SERIAL)</option>
+            <option value="COM3">COM3 (USB)</option>
           </select>
-          <button className="btn-primary" onClick={() => alert('Em breve: Enviar código para a placa!')} style={{ margin: 0, backgroundColor: 'var(--secondary)', border: 'none', boxShadow: '0 4px 0px #3aa828' }}>
+          <button className="btn-secondary" style={{ backgroundColor: '#4cd137', boxShadow: '0 4px 0px #3aa828' }} onClick={() => alert('Em breve!')}>
             🚀 Enviar
           </button>
         </div>
         
         <div style={{ display: 'flex', gap: '10px' }}>
           
-          {/* BOTÃO QUE EXIBE/OCULTA O CÓDIGO */}
-          <button className="btn-secondary" onClick={() => setIsCodeVisible(!isCodeVisible)} style={{ margin: 0, backgroundColor: '#34495e', boxShadow: '0 4px 0px #2c3e50' }}>
-            {isCodeVisible ? '🙈 Ocultar Código' : '💻 Ver Código'}
-          </button>
+          {/* 1. Menu C++ Oculto para Crianças (Aparece para professor ou visitante adulto) */}
+          {role !== 'student' && (
+            <button className="btn-secondary" onClick={() => setIsCodeVisible(!isCodeVisible)} style={{ margin: 0, backgroundColor: '#34495e', boxShadow: '0 4px 0px #2c3e50' }}>
+              {isCodeVisible ? '🙈 Ocultar Código' : '💻 Ver Código'}
+            </button>
+          )}
 
           {role === 'student' && projectId && (
             <button className="btn-primary" onClick={handleSaveProject} disabled={isSaving} style={{ margin: 0 }}>
@@ -269,9 +165,9 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
             </button>
           )}
 
-          {/* O Botão voltar não tem mais a cor vermelha forçada na tag inline, usando apenas a classe */}
-          <button className="btn-outline" onClick={onBack} style={{ margin: 0 }}>
-            Voltar
+          {/* 4. Botão de Sair com classe btn-danger para máxima legibilidade */}
+          <button className="btn-danger" onClick={onBack} style={{ margin: 0 }}>
+            Sair
           </button>
         </div>
       </div>
@@ -280,18 +176,33 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
       <div className="workspace-area">
         <div ref={blocklyDiv} id="blocklyDiv" />
         
-        {/* Renderiza o painel de código dependendo do botão "Ver Código" */}
         {isCodeVisible && (
-          <div className="code-panel">
-            <h3>Código (C++)</h3>
+          // 3. Aplica a classe fullscreen se o estado for verdadeiro
+          <div className={`code-panel ${isFullscreenCode ? 'fullscreen' : ''}`}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, color: 'var(--secondary)' }}>Código (C++)</h3>
+              
+              {/* 3. Botão de Tela Cheia */}
+              <button 
+                onClick={() => setIsFullscreenCode(!isFullscreenCode)}
+                style={{ 
+                  background: 'transparent', border: '1px solid #a4b0be', color: '#a4b0be', 
+                  padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', margin: 0
+                }}
+              >
+                {isFullscreenCode ? '↙️ Reduzir' : '⛶ Tela Cheia'}
+              </button>
+            </div>
+
             <pre>{generatedCode}</pre>
           </div>
         )}
       </div>
 
-      {/* MODAIS (MANTIDOS IGUAIS) */}
+      {/* MODAIS */}
       {saveStatus === 'success' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>✅</div>
             <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Projeto Salvo!</h2>
@@ -302,12 +213,12 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
       )}
 
       {saveStatus === 'error' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>❌</div>
             <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Ocorreu um Erro</h2>
             <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1rem' }}>{errorMessage}</p>
-            <button className="btn-outline" style={{ width: '100%', padding: '14px' }} onClick={() => setSaveStatus(null)}>Tentar Novamente</button>
+            <button className="btn-danger" style={{ width: '100%', padding: '14px' }} onClick={() => setSaveStatus(null)}>Tentar Novamente</button>
           </div>
         </div>
       )}

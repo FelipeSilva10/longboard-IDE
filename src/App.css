@@ -250,3 +250,48 @@ pre {
   border: 1px solid #485460;
   box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
 }
+/* --- MELHORIAS DA BARRA SUPERIOR E BOTÃO SAIR --- */
+
+.btn-danger {
+  background-color: var(--danger);
+  color: var(--white) !important; /* Força o texto branco puro para garantir legibilidade */
+  box-shadow: 0 6px 0px #d63031;
+}
+
+/* Nova classe para agrupar as portas, placas e botão de envio bem compactos */
+.hardware-controls {
+  display: flex;
+  gap: 8px;
+  background-color: #f0f3f5;
+  padding: 6px 12px;
+  border-radius: 12px;
+  align-items: center;
+  border: 1px solid #dfe6e9;
+}
+
+/* Força os elementos de hardware a serem menores e alinhados */
+.hardware-controls select, .hardware-controls button {
+  padding: 6px 12px !important;
+  font-size: 0.9rem !important;
+  border-radius: 8px !important;
+  margin: 0 !important;
+  height: 38px;
+}
+
+/* --- TELA CHEIA DO CÓDIGO C++ --- */
+.code-panel.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
+  resize: none; /* Remove o puxador no modo tela cheia */
+  direction: ltr; /* Volta a direção para normal */
+}
+
+/* Garante que o conteúdo não herde o Right-to-Left do resize */
+.code-panel.fullscreen > * {
+  direction: ltr;
+}
