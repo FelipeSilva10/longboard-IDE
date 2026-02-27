@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-interface Project {
-  id: string;
-  name: string;
-  updated_at: string;
-}
-
-interface StudentDashboardProps {
-  onLogout: () => void;
-  onOpenIde: (projectId?: string) => void;
-}
+interface Project { id: string; name: string; updated_at: string; }
+interface StudentDashboardProps { onLogout: () => void; onOpenIde: (projectId?: string) => void; }
 
 export function StudentDashboard({ onLogout, onOpenIde }: StudentDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState('');
+  
+  // Estados do Modal Novo Projeto
+  const [showModal, setShowModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -23,33 +19,32 @@ export function StudentDashboard({ onLogout, onOpenIde }: StudentDashboardProps)
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // Pega o nome do aluno para dar boas-vindas
         const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
         if (profile) setStudentName(profile.full_name);
 
-        // Puxa os projetos do banco de dados
         const { data: projData } = await supabase.from('projects').select('id, name, updated_at').eq('student_id', user.id).order('updated_at', { ascending: false });
         if (projData) setProjects(projData);
       }
       setLoading(false);
     };
-
     fetchStudentData();
   }, []);
 
   const handleCreateProject = async () => {
-    const nome = prompt("Qual o nome do seu novo projeto?");
-    if (!nome) return;
+    if (!newProjectName.trim()) return;
     
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data, error } = await supabase.from('projects').insert([{ student_id: user.id, name: nome }]).select().single();
-      if (!error && data) onOpenIde(data.id);
+      const { data, error } = await supabase.from('projects').insert([{ student_id: user.id, name: newProjectName }]).select().single();
+      if (!error && data) {
+        setShowModal(false);
+        onOpenIde(data.id);
+      }
     }
   };
 
   return (
-    <div className="app-container" style={{ backgroundColor: '#f4f7f6', overflowY: 'auto' }}>
+    <div className="app-container" style={{ backgroundColor: '#f4f7f6', overflowY: 'auto', position: 'relative' }}>
       <div className="topbar">
         <h2>👨‍🎓 Mesa de Trabalho: {studentName}</h2>
         <button className="btn-logout" onClick={onLogout}>Sair</button>
@@ -58,7 +53,7 @@ export function StudentDashboard({ onLogout, onOpenIde }: StudentDashboardProps)
       <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
           <h1 style={{ color: '#2c3e50' }}>Meus Projetos</h1>
-          <button className="btn-primary" onClick={handleCreateProject}>➕ Novo Projeto</button>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>➕ Novo Projeto</button>
         </div>
 
         {loading ? (
@@ -79,6 +74,29 @@ export function StudentDashboard({ onLogout, onOpenIde }: StudentDashboardProps)
           </div>
         )}
       </div>
+
+      {/* MODAL DE NOVO PROJETO */}
+      {showModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ color: '#2c3e50', marginBottom: '10px' }}>Novo Projeto</h2>
+            <p style={{ color: '#7f8c8d', marginBottom: '20px' }}>Dê um nome bem legal para a sua invenção:</p>
+            
+            <input 
+              type="text" 
+              placeholder="Ex: Robô Dançarino" 
+              value={newProjectName} 
+              onChange={(e) => setNewProjectName(e.target.value)}
+              style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '2px solid #e0e6ed', fontSize: '1.1rem', marginBottom: '20px', backgroundColor: '#f8fafd' }}
+            />
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn-primary" style={{ flex: 1 }} onClick={handleCreateProject}>Criar!</button>
+              <button className="btn-outline" style={{ flex: 1 }} onClick={() => { setShowModal(false); setNewProjectName(''); }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
