@@ -12,12 +12,10 @@ struct AppState {
     is_reading_serial: Arc<AtomicBool>,
 }
 
-///COMANDO 1: ENVIAR CÓDIGO
+// --- COMANDO 1: ENVIAR CÓDIGO (Sem Async, na Thread Correta) ---
 #[tauri::command]
 fn upload_code(codigo: String, placa: String, porta: String, state: tauri::State<AppState>) -> Result<String, String> {
-    
     println!(">>> [1] Iniciando processo de envio...");
-    
     println!(">>> [2] Desligando o monitor serial (liberando a porta)...");
     state.is_reading_serial.store(false, Ordering::Relaxed);
     std::thread::sleep(Duration::from_millis(500)); 
@@ -28,74 +26,55 @@ fn upload_code(codigo: String, placa: String, porta: String, state: tauri::State
         "esp32" => "esp32:esp32:esp32",
         _ => "arduino:avr:uno",
     };
-    println!(">>> [3] Placa selecionada: {}", fqbn);
-
+    
     let temp_dir = env::temp_dir();
     let sketch_dir = temp_dir.join("oficina_code_sketch");
     let sketch_path = sketch_dir.join("oficina_code_sketch.ino");
 
-    println!(">>> [4] Criando pasta temporária em: {:?}", sketch_dir);
+    println!(">>> [4] Criando pasta temporária...");
     let _ = fs::create_dir_all(&sketch_dir);
 
-    println!(">>> [5] Salvando o código C++ gerado no arquivo .ino...");
+    println!(">>> [5] Salvando o código C++ gerado...");
     if let Err(e) = fs::write(&sketch_path, codigo) {
-        println!(">>> [X] ERRO FATAL: Falha ao escrever arquivo: {}", e);
         return Err(format!("Erro ao criar arquivo: {}", e));
     }
 
-    println!(">>> [6] Chamando arduino-cli para COMPILAR (Isso pode demorar alguns segundos)...");
-    let compile_output = Command::new("arduino-cli").arg("compile").arg("-b").arg(fqbn).arg(&sketch_dir).output();
-    
-    let compile_output = match compile_output { 
+    println!(">>> [6] Compilando...");
+    let compile_output = match Command::new("arduino-cli").arg("compile").arg("-b").arg(fqbn).arg(&sketch_dir).output() { 
         Ok(out) => out, 
-        Err(e) => {
-            println!(">>> [X] ERRO FATAL: O arduino-cli não foi encontrado ou falhou ao abrir: {}", e);
-            return Err(format!("Erro compilador: {}", e)) 
-        }
+        Err(e) => return Err(format!("Erro compilador: {}", e)) 
     };
 
     if !compile_output.status.success() {
         let erro_compilacao = String::from_utf8_lossy(&compile_output.stderr);
-        println!(">>> [X] ERRO NO CÓDIGO C++:\n{}", erro_compilacao);
         return Err(format!("Erro no código:\n{}", erro_compilacao));
     }
-    println!(">>> [7] Compilação finalizada com sucesso!");
-
-    println!(">>> [8] Chamando arduino-cli para ENVIAR (Upload) na porta {}...", porta);
-    let upload_output = Command::new("arduino-cli").arg("upload").arg("-b").arg(fqbn).arg("-p").arg(&porta).arg(&sketch_dir).output();
     
-    let upload_output = match upload_output { 
+    println!(">>> [8] Enviando para a porta {}...", porta);
+    let upload_output = match Command::new("arduino-cli").arg("upload").arg("-b").arg(fqbn).arg("-p").arg(&porta).arg(&sketch_dir).output() { 
         Ok(out) => out, 
-        Err(e) => {
-            println!(">>> [X] ERRO FATAL: Falha ao chamar comando de upload: {}", e);
-            return Err(format!("Erro upload: {}", e)) 
-        }
+        Err(e) => return Err(format!("Erro upload: {}", e)) 
     };
 
     if !upload_output.status.success() {
         let erro_upload = String::from_utf8_lossy(&upload_output.stderr);
-        println!(">>> [X] ERRO DE UPLOAD NA PORTA {}:\n{}", porta, erro_upload);
         return Err(format!("Erro na Porta {}:\n{}", porta, erro_upload));
     }
 
-    println!(">>> [9] UPLOAD CONCLUÍDO COM SUCESSO! 🎉");
+    println!(">>> [9] UPLOAD CONCLUÍDO COM SUCESSO!");
     Ok("Sucesso!".to_string())
 }
 
-// --- COMANDO 2: LIGAR O MONITOR SERIAL ---
+// --- COMANDO 2: LIGAR O MONITOR SERIAL (COM ANTI-SPAM) ---
 #[tauri::command]
 fn start_serial(porta: String, window: tauri::Window, state: tauri::State<AppState>) -> Result<String, String> {
-    // Para qualquer escuta antiga primeiro
     state.is_reading_serial.store(false, Ordering::Relaxed);
     std::thread::sleep(Duration::from_millis(200));
 
-    // Liga o interruptor
     let is_reading = Arc::clone(&state.is_reading_serial);
     is_reading.store(true, Ordering::Relaxed);
 
-    // Cria uma tarefa em "background" (Thread) para ficar vigiando o cabo USB infinitamente
     std::thread::spawn(move || {
-        // Tenta abrir a porta na velocidade 9600
         let mut port = match serialport::new(&porta, 9600).timeout(Duration::from_millis(100)).open() {
             Ok(p) => p,
             Err(_) => {
@@ -113,11 +92,21 @@ fn start_serial(porta: String, window: tauri::Window, state: tauri::State<AppSta
                     let pedaco = String::from_utf8_lossy(&serial_buf[..t]);
                     string_acumulada.push_str(&pedaco);
                     
+                    // SEGURANÇA 1: Impede a RAM do Rust de estourar se faltar quebra de linha
+                    if string_acumulada.len() > 4000 {
+                        string_acumulada.clear();
+                    }
+                    
                     while let Some(pos) = string_acumulada.find('\n') {
                         let frase = string_acumulada[..pos].trim_end().to_string();
                         string_acumulada = string_acumulada[pos+1..].to_string();
                         
                         let _ = window.emit("serial-message", frase);
+                        
+                        // SEGURANÇA 2 (O FUNIL IPC): Força o Rust a dormir 20ms APÓS emitir.
+                        // Isso garante que o Linux receba NO MÁXIMO 50 mensagens por segundo.
+                        // Impossível dar Crash no WebKit agora, não importa a velocidade do Arduino!
+                        std::thread::sleep(Duration::from_millis(20));
                     }
                 }
                 _ => {
@@ -130,29 +119,20 @@ fn start_serial(porta: String, window: tauri::Window, state: tauri::State<AppSta
     Ok("Monitor iniciado".to_string())
 }
 
-// --- COMANDO 3: DESLIGAR O MONITOR SERIAL ---
 #[tauri::command]
 fn stop_serial(state: tauri::State<AppState>) -> Result<String, String> {
     state.is_reading_serial.store(false, Ordering::Relaxed);
     Ok("Monitor parado".to_string())
 }
 
-// --- COMANDO 4: LISTAR PORTAS USB DISPONÍVEIS ---
 #[tauri::command]
 fn get_available_ports() -> Result<Vec<String>, String> {
     match serialport::available_ports() {
         Ok(ports) => {
-            let mut port_names: Vec<String> = ports
-                .into_iter()
-                .filter(|p| {
-                    match p.port_type {
-                        serialport::SerialPortType::UsbPort(_) => true,
-                        _ => false,
-                    }
-                })
+            let mut port_names: Vec<String> = ports.into_iter()
+                .filter(|p| matches!(p.port_type, serialport::SerialPortType::UsbPort(_)))
                 .map(|p| p.port_name)
                 .collect();
-                
             port_names.sort();
             Ok(port_names)
         },

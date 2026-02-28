@@ -202,6 +202,8 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const [isCodeVisible, setIsCodeVisible] = useState(false); 
   const [isFullscreenCode, setIsFullscreenCode] = useState(false); 
   const [isUploading, setIsUploading] = useState(false);
+  const isUploadingRef = useRef(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const oficinaTheme = Blockly.Theme.defineTheme('oficinaTheme', {
     name: 'oficinaTheme', base: Blockly.Themes.Classic,
@@ -319,23 +321,33 @@ useEffect(() => {
   };
 
 const handleUploadCode = async () => {
-    if (isUploading) return;
+    if (isUploadingRef.current) return;
     
     try {
-      setIsUploading(true); 
+      isUploadingRef.current = true;
+      setIsUploading(true);
       setSaveStatus(null);
       
-      const respostaDoRust = await invoke('upload_code', { 
+      if (isSerialOpen) {
+        await invoke('stop_serial');
+        setIsSerialOpen(false);
+      }
+      
+      // 2. MANDA COMPILAR
+      await invoke('upload_code', { 
         codigo: generatedCode, 
         placa: board, 
         porta: port 
       });
 
-      alert(respostaDoRust);
+      setUploadSuccess(true);
+      
     } catch (error) {
-      alert("❌ " + error);
+      setErrorMessage(String(error));
+      setSaveStatus('error'); 
     } finally {
-      setIsUploading(false); 
+      isUploadingRef.current = false;
+      setIsUploading(false);
     }
   };
 
@@ -471,6 +483,19 @@ const handleUploadCode = async () => {
           </div>
         </div>
       )}
+
+      {/* MODAL DE CÓDIGO ENVIADO COM SUCESSO (Substitui o alert) */}
+      {uploadSuccess && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
+          <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>🚀</div>
+            <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Código Enviado!</h2>
+            <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1.1rem' }}>O seu robô já está a executar as novas instruções perfeitamente.</p>
+            <button className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.1rem' }} onClick={() => setUploadSuccess(false)}>Continuar</button>
+          </div>
+        </div>
+      )}
+
       {/* --- JANELA DO MONITOR SERIAL --- */}
       {isSerialOpen && (
         <div style={{
