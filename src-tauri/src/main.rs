@@ -12,13 +12,15 @@ struct AppState {
     is_reading_serial: Arc<AtomicBool>,
 }
 
-// --- COMANDO 1: ENVIAR CÓDIGO (Atualizado) ---
+///COMANDO 1: ENVIAR CÓDIGO
 #[tauri::command]
 fn upload_code(codigo: String, placa: String, porta: String, state: tauri::State<AppState>) -> Result<String, String> {
     
-    // REGRA DE OURO: Desliga o Monitor Serial antes de tentar fazer upload!
+    println!(">>> [1] Iniciando processo de envio...");
+    
+    println!(">>> [2] Desligando o monitor serial (liberando a porta)...");
     state.is_reading_serial.store(false, Ordering::Relaxed);
-    std::thread::sleep(Duration::from_millis(500)); // Dá meio segundo pra porta USB ser liberada
+    std::thread::sleep(Duration::from_millis(500)); 
 
     let fqbn = match placa.as_str() {
         "uno" => "arduino:avr:uno",
@@ -26,31 +28,57 @@ fn upload_code(codigo: String, placa: String, porta: String, state: tauri::State
         "esp32" => "esp32:esp32:esp32",
         _ => "arduino:avr:uno",
     };
+    println!(">>> [3] Placa selecionada: {}", fqbn);
 
     let temp_dir = env::temp_dir();
     let sketch_dir = temp_dir.join("oficina_code_sketch");
     let sketch_path = sketch_dir.join("oficina_code_sketch.ino");
 
+    println!(">>> [4] Criando pasta temporária em: {:?}", sketch_dir);
     let _ = fs::create_dir_all(&sketch_dir);
 
+    println!(">>> [5] Salvando o código C++ gerado no arquivo .ino...");
     if let Err(e) = fs::write(&sketch_path, codigo) {
+        println!(">>> [X] ERRO FATAL: Falha ao escrever arquivo: {}", e);
         return Err(format!("Erro ao criar arquivo: {}", e));
     }
 
+    println!(">>> [6] Chamando arduino-cli para COMPILAR (Isso pode demorar alguns segundos)...");
     let compile_output = Command::new("arduino-cli").arg("compile").arg("-b").arg(fqbn).arg(&sketch_dir).output();
-    let compile_output = match compile_output { Ok(out) => out, Err(e) => return Err(format!("Erro compilador: {}", e)) };
+    
+    let compile_output = match compile_output { 
+        Ok(out) => out, 
+        Err(e) => {
+            println!(">>> [X] ERRO FATAL: O arduino-cli não foi encontrado ou falhou ao abrir: {}", e);
+            return Err(format!("Erro compilador: {}", e)) 
+        }
+    };
 
     if !compile_output.status.success() {
-        return Err(format!("Erro no código:\n{}", String::from_utf8_lossy(&compile_output.stderr)));
+        let erro_compilacao = String::from_utf8_lossy(&compile_output.stderr);
+        println!(">>> [X] ERRO NO CÓDIGO C++:\n{}", erro_compilacao);
+        return Err(format!("Erro no código:\n{}", erro_compilacao));
     }
+    println!(">>> [7] Compilação finalizada com sucesso!");
 
+    println!(">>> [8] Chamando arduino-cli para ENVIAR (Upload) na porta {}...", porta);
     let upload_output = Command::new("arduino-cli").arg("upload").arg("-b").arg(fqbn).arg("-p").arg(&porta).arg(&sketch_dir).output();
-    let upload_output = match upload_output { Ok(out) => out, Err(e) => return Err(format!("Erro upload: {}", e)) };
+    
+    let upload_output = match upload_output { 
+        Ok(out) => out, 
+        Err(e) => {
+            println!(">>> [X] ERRO FATAL: Falha ao chamar comando de upload: {}", e);
+            return Err(format!("Erro upload: {}", e)) 
+        }
+    };
 
     if !upload_output.status.success() {
-        return Err(format!("Erro na Porta {}:\n{}", porta, String::from_utf8_lossy(&upload_output.stderr)));
+        let erro_upload = String::from_utf8_lossy(&upload_output.stderr);
+        println!(">>> [X] ERRO DE UPLOAD NA PORTA {}:\n{}", porta, erro_upload);
+        return Err(format!("Erro na Porta {}:\n{}", porta, erro_upload));
     }
 
+    println!(">>> [9] UPLOAD CONCLUÍDO COM SUCESSO! 🎉");
     Ok("Sucesso!".to_string())
 }
 

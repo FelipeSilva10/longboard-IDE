@@ -116,8 +116,9 @@ const customBlocks = [
   //Tradutores para C++
   Blockly.defineBlocksWithJsonArray(customBlocks);
 
-  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
-     return `void setup() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n'}}\n\n`; 
+cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
+     const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n';
+     return `void setup() {\n  Serial.begin(9600);\n${branch}}\n\n`; 
   };
 
   cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) {
@@ -145,11 +146,11 @@ const customBlocks = [
   };
   
   cppGenerator.forBlock['ler_pino_digital'] = function(block: Blockly.Block) { 
-    return [`digitalRead(${block.getFieldValue('PIN')})`, Blockly.Generator.ORDER_ATOMIC]; 
+    return [`digitalRead(${block.getFieldValue('PIN')})`, 0]; 
   };
 
   cppGenerator.forBlock['escrever_serial_valor'] = function(block: Blockly.Block) { 
-    const valorEncaixado = cppGenerator.valueToCode(block, 'VALOR', Blockly.Generator.ORDER_NONE) || '0';
+    const valorEncaixado = cppGenerator.valueToCode(block, 'VALOR', 99) || '0';
     return `  Serial.println(${valorEncaixado});\n`; 
   };
 
@@ -200,6 +201,7 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null); 
   const [isCodeVisible, setIsCodeVisible] = useState(false); 
   const [isFullscreenCode, setIsFullscreenCode] = useState(false); 
+  const [isUploading, setIsUploading] = useState(false);
 
   const oficinaTheme = Blockly.Theme.defineTheme('oficinaTheme', {
     name: 'oficinaTheme', base: Blockly.Themes.Classic,
@@ -276,12 +278,16 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [serialMessages, isSerialOpen]);
 
-  useEffect(() => {
+useEffect(() => {
     let unlisten: () => void;
     
     const setupListener = async () => {
       unlisten = await listen<string>('serial-message', (event) => {
-        setSerialMessages(prev => [...prev, event.payload]);
+        setSerialMessages(prev => {
+          const newMessages = [...prev, event.payload];
+          if (newMessages.length > 20) return newMessages.slice(newMessages.length - 20);
+          return newMessages;
+        });
       });
     };
     setupListener();
@@ -313,7 +319,10 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   };
 
 const handleUploadCode = async () => {
+    if (isUploading) return;
+    
     try {
+      setIsUploading(true); 
       setSaveStatus(null);
       
       const respostaDoRust = await invoke('upload_code', { 
@@ -323,9 +332,10 @@ const handleUploadCode = async () => {
       });
 
       alert(respostaDoRust);
-      
     } catch (error) {
       alert("❌ " + error);
+    } finally {
+      setIsUploading(false); 
     }
   };
 
@@ -371,9 +381,13 @@ const handleUploadCode = async () => {
 
           <div className="control-divider" />
 
-          {/* O BOTÃO DE ENVIAR VOLTOU! */}
-          <button onClick={handleUploadCode} className="btn-action btn-send">
-            🚀 Enviar
+          <button 
+            onClick={handleUploadCode} 
+            className="btn-action btn-send"
+            disabled={isUploading}
+            style={{ opacity: isUploading ? 0.7 : 1, cursor: isUploading ? 'wait' : 'pointer' }}
+          >
+            {isUploading ? '⏳ Compilando...' : '🚀 Enviar'}
           </button>
           
           <button 
