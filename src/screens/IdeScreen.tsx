@@ -5,6 +5,7 @@ import * as PtBr from 'blockly/msg/pt-br';
 import { supabase } from '../lib/supabase'; 
 import logoSimples from '../assets/LogoSimples.png'; 
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
@@ -57,15 +58,17 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   
   const [board, setBoard] = useState<'nano' | 'esp32' | 'uno'>('uno'); 
-  const [port, setPort] = useState('/dev/ttyUSB0'); // Porta padrão pra o meu Linux1
+  const [port, setPort] = useState('/dev/ttyUSB0'); 
   const [generatedCode, setGeneratedCode] = useState<string>('// O código C++ aparecerá aqui...');
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState('Projeto');
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  
+  const [isSerialOpen, setIsSerialOpen] = useState(false);
+  const [serialMessages, setSerialMessages] = useState<string[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null); 
   const [isCodeVisible, setIsCodeVisible] = useState(false); 
-  const [isFullscreenCode, setIsFullscreenCode] = useState(false); // <-- 3. Estado da Tela Cheia
+  const [isFullscreenCode, setIsFullscreenCode] = useState(false); 
 
   const oficinaTheme = Blockly.Theme.defineTheme('oficinaTheme', {
     name: 'oficinaTheme', base: Blockly.Themes.Classic,
@@ -114,6 +117,38 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
 
   useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role, isCodeVisible, isFullscreenCode]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [serialMessages, isSerialOpen]);
+
+  useEffect(() => {
+    let unlisten: () => void;
+    
+    const setupListener = async () => {
+      unlisten = await listen<string>('serial-message', (event) => {
+        setSerialMessages(prev => [...prev, event.payload]);
+      });
+    };
+    setupListener();
+
+    return () => { if (unlisten) unlisten(); };
+  }, []);
+
+  const handleToggleSerial = async () => {
+    try {
+      if (isSerialOpen) {
+        await invoke('stop_serial');
+        setIsSerialOpen(false);
+      } else {
+        setSerialMessages([]);
+        await invoke('start_serial', { porta: port });
+        setIsSerialOpen(true);
+      }
+    } catch (error) {
+      alert("Erro no Serial: " + error);
+    }
+  };
+
   const handleSaveProject = async () => {
     if (!projectId || !workspace.current) return;
     setIsSaving(true);
@@ -156,18 +191,28 @@ const handleUploadCode = async () => {
           )}
         </div>
 
- <div className="hardware-controls">
+<div className="hardware-controls">
           <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32' | 'uno')} disabled={role === 'teacher' && projectId !== undefined}>
             <option value="uno">Arduino Uno</option>
             <option value="nano">Arduino Nano</option>
             <option value="esp32">ESP32</option>
           </select>
           <select value={port} onChange={(e) => setPort(e.target.value)}>
-            <option value="/dev/ttyUSB0">/dev/ttyUSB0 (Linux Uno)</option>
+            <option value="/dev/ttyACM0">/dev/ttyACM0 (Linux Uno)</option>
+            <option value="/dev/ttyUSB0">/dev/ttyUSB0 (Linux Nano)</option>
             <option value="COM3">COM3 (Windows)</option>
           </select>
+          
           <button onClick={handleUploadCode}>
             🚀 Enviar
+          </button>
+          
+          {/* NOVO BOTÃO DO MONITOR SERIAL */}
+          <button 
+            style={{ backgroundColor: isSerialOpen ? '#ff4757' : '#2c3e50' }} 
+            onClick={handleToggleSerial}
+          >
+            {isSerialOpen ? 'Parar Chat' : '💬 Chat Robô'}
           </button>
         </div>
         
@@ -240,6 +285,40 @@ const handleUploadCode = async () => {
             <h2 style={{ color: 'var(--dark)', marginBottom: '15px' }}>Ocorreu um Erro</h2>
             <p style={{ color: '#7f8c8d', marginBottom: '25px', fontSize: '1rem' }}>{errorMessage}</p>
             <button className="btn-danger" style={{ width: '100%', padding: '14px' }} onClick={() => setSaveStatus(null)}>Tentar Novamente</button>
+          </div>
+        </div>
+      )}
+      {/* --- JANELA DO MONITOR SERIAL --- */}
+      {isSerialOpen && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', width: '350px', height: '400px',
+          backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+          display: 'flex', flexDirection: 'column', zIndex: 9000, overflow: 'hidden', border: '2px solid #e0e6ed'
+        }}>
+          {/* Cabeçalho do Chat */}
+          <div style={{ backgroundColor: '#2c3e50', color: 'white', padding: '15px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+            <span>🤖 O Robô diz...</span>
+            <span style={{ cursor: 'pointer' }} onClick={handleToggleSerial}>✕</span>
+          </div>
+          
+          {/* Área de Mensagens */}
+          <div style={{ flex: 1, padding: '15px', overflowY: 'auto', backgroundColor: '#f8fafd', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {serialMessages.length === 0 ? (
+              <p style={{ color: '#a4b0be', textAlign: 'center', marginTop: '50px', fontStyle: 'italic' }}>
+                Aguardando o robô falar...
+              </p>
+            ) : (
+              serialMessages.map((msg, idx) => (
+                <div key={idx} style={{ 
+                  backgroundColor: '#dfe6e9', padding: '10px 15px', borderRadius: '15px', 
+                  borderBottomLeftRadius: '2px', alignSelf: 'flex-start', color: '#2d3436',
+                  maxWidth: '85%', wordBreak: 'break-word', fontFamily: 'monospace'
+                }}>
+                  {msg}
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
           </div>
         </div>
       )}

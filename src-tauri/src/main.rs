@@ -5,10 +5,9 @@ use std::process::Command;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::Emitter; 
 use std::time::Duration;
 
-// Isso guarda o "interruptor" global para ligar/desligar a escuta do USB
 struct AppState {
     is_reading_serial: Arc<AtomicBool>,
 }
