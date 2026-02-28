@@ -182,58 +182,77 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     if (!error) setSaveStatus('success'); else { setErrorMessage(error.message); setSaveStatus('error'); }
   };
 
+const handleUploadCode = async () => {
+    try {
+      setSaveStatus(null);
+      
+      const respostaDoRust = await invoke('upload_code', { 
+        codigo: generatedCode, 
+        placa: board, 
+        porta: port 
+      });
+
+      alert(respostaDoRust);
+      
+    } catch (error) {
+      alert("❌ " + error);
+    }
+  };
+
   return (
     <div className="app-container">
       
       {/* BARRA SUPERIOR (TOPBAR) */}
       <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '15px' }}>
-        
-        {/* 5. A Logo substitui o texto "Oficina Code" */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: 'fit-content' }}>
           <img src={logoSimples} alt="Oficina Code" style={{ height: '35px' }} />
-          {projectId && (
-            <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--dark)' }}>
-              {role === 'student' ? `Mesa: ${projectName}` : `👀 Inspecionando: ${projectName}`}
-            </h2>
-          )}
+            {projectId && (
+              <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--dark)' }}>
+                {role === 'student' ? `Mesa: ${projectName}` : `👀 Inspecionando: ${projectName}`}
+              </h2>
+            )}
         </div>
 
-<div className="hardware-controls">
-{/* MENU DA PLACA (Continua igual) */}
-          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32' | 'uno')} disabled={role === 'teacher' && projectId !== undefined}>
-            <option value="uno">Arduino Uno</option>
-            <option value="nano">Arduino Nano</option>
-            <option value="esp32">ESP32</option>
-          </select>
+{/* NOVA SEÇÃO DE HARDWARE (MUITO MAIS BONITA) */}
+        <div className="hardware-controls" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+          
+          <div className="control-group">
+            <span className="control-icon">🖥️</span>
+            <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32' | 'uno')} disabled={role === 'teacher' && projectId !== undefined}>
+              <option value="uno">Uno</option>
+              <option value="nano">Nano</option>
+              <option value="esp32">ESP32</option>
+            </select>
+          </div>
 
-          {/* NOVO MENU DE PORTAS DINÂMICO E BOTÃO ATUALIZAR */}
-          <div style={{ display: 'flex', gap: '5px' }}>
+          <div className="control-divider" />
+
+          <div className="control-group">
+            <span className="control-icon">🔌</span>
             <select value={port} onChange={(e) => setPort(e.target.value)}>
               {availablePorts.length === 0 ? (
-                <option value="">Nenhuma porta...</option>
+                <option value="">Conecte o cabo...</option>
               ) : (
-                availablePorts.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))
+                availablePorts.map(p => <option key={p} value={p}>{p}</option>)
               )}
             </select>
-            
-            <button 
-              onClick={fetchPorts} 
-              style={{ backgroundColor: '#e0e6ed', color: '#2c3e50', padding: '0 10px', height: '42px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}
-              title="Buscar portas conectadas"
-            >
-              🔄
-            </button>
+            <button onClick={fetchPorts} className="btn-icon" title="Buscar portas">🔄</button>
           </div>
+
+          <div className="control-divider" />
+
+          {/* O BOTÃO DE ENVIAR VOLTOU! */}
+          <button onClick={handleUploadCode} className="btn-action btn-send">
+            🚀 Enviar
+          </button>
           
-          {/* NOVO BOTÃO DO MONITOR SERIAL */}
           <button 
-            style={{ backgroundColor: isSerialOpen ? '#ff4757' : '#2c3e50' }} 
+            className={`btn-action ${isSerialOpen ? 'btn-chat-active' : 'btn-chat'}`}
             onClick={handleToggleSerial}
           >
-            {isSerialOpen ? 'Parar Chat' : '💬 Chat Robô'}
+            {isSerialOpen ? '🛑 Parar' : '💬 Chat'}
           </button>
+
         </div>
         
         <div style={{ display: 'flex', gap: '10px' }}>

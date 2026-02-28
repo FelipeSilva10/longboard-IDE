@@ -258,25 +258,121 @@ pre {
   box-shadow: 0 6px 0px #d63031;
 }
 
-/* Classe para agrupar as portas, placas e botão de envio bem compactos */
+/* =========================================
+   BARRA DE HARDWARE (MEIO DA TOPBAR)
+   ========================================= */
 .hardware-controls {
   display: flex;
-  gap: 8px;
-  background-color: #f0f3f5;
-  padding: 6px 12px;
-  border-radius: 12px;
   align-items: center;
-  border: 1px solid #dfe6e9;
+  background-color: var(--white);
+  border: 2px solid #e0e6ed;
+  border-radius: 100px; /* Fica arredondado como uma pílula */
+  padding: 4px 6px;
+  gap: 4px;
+  box-shadow: 0 4px 0px rgba(224, 230, 237, 0.6); /* Efeito 3D da base */
 }
 
-/* Força os elementos de hardware a serem menores e alinhados */
-.hardware-controls select, .hardware-controls button {
-  padding: 6px 12px !important;
-  font-size: 0.9rem !important;
-  border-radius: 8px !important;
-  margin: 0 !important;
-  height: 38px;
+/* Grupo do Seletor (Placa e Porta) */
+.control-group {
+  display: flex;
+  align-items: center;
+  background-color: #f4f7f6;
+  border-radius: 100px;
+  padding: 4px 12px 4px 10px;
+  gap: 5px;
 }
+
+.control-icon {
+  font-size: 1.1rem;
+}
+
+.hardware-controls select {
+  background: transparent;
+  border: none !important;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--dark);
+  cursor: pointer;
+  outline: none;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto;
+}
+
+.hardware-controls select:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Aquele tracinho vertical separando as seções */
+.control-divider {
+  width: 2px;
+  height: 20px;
+  background-color: #e0e6ed;
+  margin: 0 4px;
+  border-radius: 2px;
+}
+
+/* Botão de Atualizar Redondinho */
+.btn-icon {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  height: auto !important;
+}
+
+.btn-icon:hover {
+  background-color: #dfe6e9;
+  transform: rotate(45deg); /* Dá um efeitinho giro ao passar o mouse */
+}
+
+.btn-icon:active {
+  transform: rotate(90deg) scale(0.9);
+  box-shadow: none;
+}
+
+/* Botoões de Ação (Enviar e Chat) */
+.btn-action {
+  border: none;
+  border-radius: 100px !important;
+  padding: 8px 16px !important;
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+  transition: all 0.1s;
+  color: white;
+  margin: 0 !important;
+  height: auto !important;
+}
+
+.btn-action:active {
+  transform: translateY(4px);
+}
+
+.btn-send {
+  background-color: var(--secondary); /* Fica Verdinho */
+  box-shadow: 0 4px 0px #3bac29;
+}
+.btn-send:active { box-shadow: 0 0px 0px #3bac29; }
+
+.btn-chat {
+  background-color: #2c3e50;
+  box-shadow: 0 4px 0px #1a252f;
+}
+.btn-chat:active { box-shadow: 0 0px 0px #1a252f; }
+
+.btn-chat-active {
+  background-color: var(--danger);
+  box-shadow: 0 4px 0px #d63031;
+}
+.btn-chat-active:active { box-shadow: 0 0px 0px #d63031; }
 
 /* --- TELA CHEIA DO CÓDIGO C++ --- */
 .code-panel.fullscreen {

@@ -112,10 +112,19 @@ fn stop_serial(state: tauri::State<AppState>) -> Result<String, String> {
 // --- COMANDO 4: LISTAR PORTAS USB DISPONÍVEIS ---
 #[tauri::command]
 fn get_available_ports() -> Result<Vec<String>, String> {
-    // Tenta buscar todas as portas
     match serialport::available_ports() {
         Ok(ports) => {
-            let mut port_names: Vec<String> = ports.into_iter().map(|p| p.port_name).collect();
+            let mut port_names: Vec<String> = ports
+                .into_iter()
+                .filter(|p| {
+                    match p.port_type {
+                        serialport::SerialPortType::UsbPort(_) => true,
+                        _ => false,
+                    }
+                })
+                .map(|p| p.port_name)
+                .collect();
+                
             port_names.sort();
             Ok(port_names)
         },
