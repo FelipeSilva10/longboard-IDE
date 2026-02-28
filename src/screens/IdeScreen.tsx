@@ -24,30 +24,160 @@ const BOARDS = {
 
 let currentBoardPins = BOARDS.nano.pins;
 
-if (!Blockly.Blocks['configurar_pino']) {
-  const customBlocks = [
-    { "type": "bloco_setup", "message0": "⚙️ PREPARAR (Roda 1 vez) %1", "args0": [{ "type": "input_statement", "name": "DO" }], "colour": 290, "tooltip": "Configurações iniciais.", "helpUrl": "" },
-    { "type": "bloco_loop", "message0": "🔄 AGIR (Roda para sempre) %1", "args0": [{ "type": "input_statement", "name": "DO" }], "colour": 260, "tooltip": "Ações que vão se repetir.", "helpUrl": "" },
-    { "type": "configurar_pino", "message0": "⚙️ Configurar pino %1 como %2", "args0": [{ "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins }, { "type": "field_dropdown", "name": "MODE", "options": [["Saída (Enviar sinal)", "OUTPUT"], ["Entrada (Ler sensor)", "INPUT"]] }], "previousStatement": null, "nextStatement": null, "colour": 230 },
-    { "type": "escrever_pino", "message0": "💡 Colocar pino %1 em estado %2", "args0": [{ "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins }, { "type": "field_dropdown", "name": "STATE", "options": [["Ligado (HIGH)", "HIGH"], ["Desligado (LOW)", "LOW"]] }], "previousStatement": null, "nextStatement": null, "colour": 230 },
-    { "type": "esperar", "message0": "⏱️ Esperar %1 milissegundos", "args0": [{ "type": "field_number", "name": "TIME", "value": 1000, "min": 0 }], "previousStatement": null, "nextStatement": null, "colour": 120 },
-    { "type": "repetir_vezes", "message0": "🔁 Repetir %1 vezes %2 %3", "args0": [{ "type": "field_number", "name": "TIMES", "value": 5, "min": 1 }, { "type": "input_dummy" }, { "type": "input_statement", "name": "DO" }], "previousStatement": null, "nextStatement": null, "colour": 120 }
+const customBlocks = [
+    { 
+      "type": "bloco_setup", 
+      "message0": "⚙️ PREPARAR (Roda 1 vez) %1", 
+      "args0": [{ "type": "input_statement", "name": "DO" }], 
+      "colour": 290, "tooltip": "Configurações iniciais.", 
+      "helpUrl": "" 
+    },
+    { "type": "bloco_loop", 
+      "message0": "🔄 AGIR (Roda para sempre) %1", 
+      "args0": [{ "type": "input_statement", 
+      "name": "DO" }], 
+      "colour": 260, 
+      "tooltip": "Ações que vão se repetir.", 
+      "helpUrl": "" 
+    },
+    { "type": "configurar_pino", 
+      "message0": "⚙️ Configurar pino %1 como %2", 
+      "args0": [{ "type": "field_dropdown", 
+      "name": "PIN", 
+      "options": () => currentBoardPins 
+    }, 
+    { "type": "field_dropdown", 
+      "name": "MODE", 
+      "options": [["Saída (Enviar sinal)", 
+      "OUTPUT"], ["Entrada (Ler sensor)", 
+      "INPUT"]] }], 
+      "previousStatement": null, 
+      "nextStatement": null, 
+      "colour": 230 
+    },
+    { 
+      "type": "escrever_pino", 
+      "message0": "💡 Colocar pino %1 em estado %2", 
+      "args0": [{ "type": "field_dropdown", 
+      "name": "PIN", 
+      "options": () => currentBoardPins 
+    }, 
+    { 
+      "type": "field_dropdown", 
+      "name": "STATE", 
+      "options": [["Ligado (HIGH)", "HIGH"], ["Desligado (LOW)", "LOW"]] }], 
+      "previousStatement": null, 
+      "nextStatement": null, 
+      "colour": 230 
+    },
+    { 
+      "type": "esperar", 
+      "message0": "⏱️ Esperar %1 milissegundos", 
+      "args0": [{ "type": "field_number", "name": "TIME", "value": 1000, "min": 0 }], 
+      "previousStatement": null, 
+      "nextStatement": null, 
+      "colour": 120 
+    },
+    { 
+      "type": "repetir_vezes", 
+      "message0": "🔁 Repetir %1 vezes %2 %3", 
+      "args0": [{ "type": "field_number", "name": "TIMES", "value": 5, "min": 1}, { "type": "input_dummy" }, { "type": "input_statement", "name": "DO" }],
+      "previousStatement": null, 
+      "nextStatement": null, 
+      "colour": 120 
+    },
+    { 
+      "type": "escrever_serial", 
+      "message0": "💬 O robô diz o texto: %1", 
+      "args0": [{ "type": "field_input", "name": "TEXT", "text": "Olá, mundo!" }], 
+      "previousStatement": null, 
+      "nextStatement": null, 
+      "colour": 160, 
+      "tooltip": "Envia uma mensagem de texto para o computador." },
+    { 
+      "type": "ler_pino_digital", 
+      "message0": "📥 Ler pino %1", 
+      "args0": [{ "type": "field_dropdown", "name": "PIN", "options": () => currentBoardPins }], 
+      "output": null,
+      "colour": 230, 
+      "tooltip": "Lê se o pino está recebendo energia (Ligado = 1, Desligado = 0)." 
+    },
+    { 
+      "type": "escrever_serial_valor", 
+      "message0": "💬 O robô diz a leitura de: %1", 
+      "args0": [{ "type": "input_value", "name": "VALOR" }],
+      "previousStatement": null, 
+      "nextStatement": null, 
+      "colour": 160, 
+      "tooltip": "Envia o valor de um sensor ou pino para o Chat." 
+    }
   ];
+
+  //Tradutores para C++
   Blockly.defineBlocksWithJsonArray(customBlocks);
 
-  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) { return `void setup() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n'}}\n\n`; };
-  cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) { return `void loop() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas ações principais entrarão aqui...\n'}}\n\n`; };
-  cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) { return `  pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`; };
-  cppGenerator.forBlock['escrever_pino'] = function(block: Blockly.Block) { return `  digitalWrite(${block.getFieldValue('PIN')}, ${block.getFieldValue('STATE')});\n`; };
-  cppGenerator.forBlock['esperar'] = function(block: Blockly.Block) { return `  delay(${block.getFieldValue('TIME')});\n`; };
-  cppGenerator.forBlock['repetir_vezes'] = function(block: Blockly.Block) { return `  for (int i = 0; i < ${block.getFieldValue('TIMES')}; i++) {\n${cppGenerator.statementToCode(block, 'DO') || ''}  }\n`; };
-}
+  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
+     return `void setup() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n'}}\n\n`; 
+  };
+
+  cppGenerator.forBlock['bloco_loop'] = function(block: Blockly.Block) {
+     return `void loop() {\n${cppGenerator.statementToCode(block, 'DO') || '  // Suas ações principais entrarão aqui...\n'}}\n\n`; 
+  };
+
+  cppGenerator.forBlock['configurar_pino'] = function(block: Blockly.Block) {
+     return `  pinMode(${block.getFieldValue('PIN')}, ${block.getFieldValue('MODE')});\n`; 
+  };
+
+  cppGenerator.forBlock['escrever_pino'] = function(block: Blockly.Block) {
+     return `  digitalWrite(${block.getFieldValue('PIN')}, ${block.getFieldValue('STATE')});\n`; 
+  };
+
+  cppGenerator.forBlock['esperar'] = function(block: Blockly.Block) {
+     return `  delay(${block.getFieldValue('TIME')});\n`; 
+  };
+
+  cppGenerator.forBlock['repetir_vezes'] = function(block: Blockly.Block) {
+     return `  for (int i = 0; i < ${block.getFieldValue('TIMES')}; i++) {\n${cppGenerator.statementToCode(block, 'DO') || ''}  }\n`; 
+  };
+  
+  cppGenerator.forBlock['escrever_serial'] = function(block: Blockly.Block) {
+     return `  Serial.println("${block.getFieldValue('TEXT')}");\n`; 
+  };
+  
+  cppGenerator.forBlock['ler_pino_digital'] = function(block: Blockly.Block) { 
+    return [`digitalRead(${block.getFieldValue('PIN')})`, Blockly.Generator.ORDER_ATOMIC]; 
+  };
+
+  cppGenerator.forBlock['escrever_serial_valor'] = function(block: Blockly.Block) { 
+    const valorEncaixado = cppGenerator.valueToCode(block, 'VALOR', Blockly.Generator.ORDER_NONE) || '0';
+    return `  Serial.println(${valorEncaixado});\n`; 
+  };
 
 const toolboxConfig = {
   kind: 'categoryToolbox',
   contents: [
-    { kind: 'category', name: '🔌 Pinos & LEDs', colour: '230', contents: [{ kind: 'block', type: 'configurar_pino' }, { kind: 'block', type: 'escrever_pino' }] },
-    { kind: 'category', name: '⚙️ Controle', colour: '120', contents: [{ kind: 'block', type: 'esperar' }, { kind: 'block', type: 'repetir_vezes' }] }
+    { 
+      kind: 'category', name: '0️⃣1️⃣ Entrada e Saída Digital', colour: '230', 
+      contents: [
+        { kind: 'block', type: 'configurar_pino' }, 
+        { kind: 'block', type: 'escrever_pino' },
+        { kind: 'block', type: 'ler_pino_digital' } // <-- Adicionado aqui!
+      ] 
+    },
+    { 
+      kind: 'category', name: '🔁 Controle', colour: '120', 
+      contents: [
+        { kind: 'block', type: 'esperar' }, 
+        { kind: 'block', type: 'repetir_vezes' }
+      ] 
+    },
+    { 
+      kind: 'category', name: '💬 Comunicação', colour: '160', 
+      contents: [
+        { kind: 'block', type: 'escrever_serial' },
+        { kind: 'block', type: 'escrever_serial_valor' } // <-- Adicionado aqui!
+      ] 
+    }
   ]
 };
 
