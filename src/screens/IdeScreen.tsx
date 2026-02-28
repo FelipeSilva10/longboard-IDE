@@ -3,7 +3,8 @@ import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
 import * as PtBr from 'blockly/msg/pt-br';
 import { supabase } from '../lib/supabase'; 
-import logoSimples from '../assets/LogoSimples.png'; // <-- 5. Logo importada aqui!
+import logoSimples from '../assets/LogoSimples.png'; 
+import { invoke } from '@tauri-apps/api/core';
 
 Blockly.setLocale(PtBr as any);
 const cppGenerator = new Blockly.Generator('CPP');
@@ -15,8 +16,9 @@ cppGenerator.scrub_ = function(block, code, opt_thisOnly) {
 };
 
 const BOARDS = {
+  uno: { name: 'Arduino Uno', pins: [['D2', '2'], ['D3', '3'], ['D4', '4'], ['D5', '5'], ['D6', '6'], ['D7', '7'], ['D8', '8'], ['D9', '9'], ['D10', '10'], ['D11', '11'], ['D12', '12'], ['D13 (LED Interno)', '13']] },
   nano: { name: 'Arduino Nano', pins: [['D2', '2'], ['D3', '3'], ['D4', '4'], ['D5', '5'], ['D6', '6'], ['D7', '7'], ['D8', '8'], ['D9', '9'], ['D10', '10'], ['D11', '11'], ['D12', '12'], ['D13 (LED Interno)', '13']] },
-  esp32: { name: 'ESP32 DevKit', pins: [['GPIO 2 (LED)', '2'], ['GPIO 4', '4'], ['GPIO 5', '5'], ['GPIO 12', '12'], ['GPIO 13', '13'], ['GPIO 14', '14'], ['GPIO 15', '15'], ['GPIO 18', '18'], ['GPIO 19', '19'], ['GPIO 21', '21'], ['GPIO 22', '22'], ['GPIO 23', '23']] }
+  esp32: { name: 'ESP32 DevKit V1', pins: [['GPIO 2 (LED)', '2'], ['GPIO 4', '4'], ['GPIO 5', '5'], ['GPIO 12', '12'], ['GPIO 13', '13'], ['GPIO 14', '14'], ['GPIO 15', '15'], ['GPIO 18', '18'], ['GPIO 19', '19'], ['GPIO 21', '21'], ['GPIO 22', '22'], ['GPIO 23', '23']] }
 };
 
 let currentBoardPins = BOARDS.nano.pins;
@@ -54,7 +56,8 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   
-  const [board, setBoard] = useState<'nano' | 'esp32'>('nano');
+  const [board, setBoard] = useState<'nano' | 'esp32' | 'uno'>('uno'); 
+  const [port, setPort] = useState('/dev/ttyUSB0'); // Porta padrão pra o meu Linux1
   const [generatedCode, setGeneratedCode] = useState<string>('// O código C++ aparecerá aqui...');
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState('Projeto');
@@ -119,6 +122,24 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     if (!error) setSaveStatus('success'); else { setErrorMessage(error.message); setSaveStatus('error'); }
   };
 
+const handleUploadCode = async () => {
+    try {
+      setSaveStatus(null);
+      // alert('Compilando e enviando para a placa...'); // Pode apagar/comentar esse alert
+      
+      const respostaDoRust = await invoke('upload_code', { 
+        codigo: generatedCode, 
+        placa: board, 
+        porta: port // Usa a porta selecionada
+      });
+
+      alert(respostaDoRust);
+      
+    } catch (error) {
+      alert("❌ " + error);
+    }
+  };
+
   return (
     <div className="app-container">
       
@@ -135,17 +156,17 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
           )}
         </div>
 
-        {/* 2. Menu de Hardware Compacto e Alinhado via CSS */}
-        <div className="hardware-controls">
-          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32')} disabled={role === 'teacher' && projectId !== undefined}>
-            <option value="nano">🖥️ Arduino Nano</option>
-            <option value="esp32">📡 ESP32</option>
+ <div className="hardware-controls">
+          <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32' | 'uno')} disabled={role === 'teacher' && projectId !== undefined}>
+            <option value="uno">Arduino Uno</option>
+            <option value="nano">Arduino Nano</option>
+            <option value="esp32">ESP32</option>
           </select>
-          <select>
-            <option value="">🔌 Porta COM...</option>
-            <option value="COM3">COM3 (USB)</option>
+          <select value={port} onChange={(e) => setPort(e.target.value)}>
+            <option value="/dev/ttyUSB0">/dev/ttyUSB0 (Linux Uno)</option>
+            <option value="COM3">COM3 (Windows)</option>
           </select>
-          <button className="btn-secondary" style={{ backgroundColor: '#4cd137', boxShadow: '0 4px 0px #3aa828' }} onClick={() => alert('Em breve!')}>
+          <button onClick={handleUploadCode}>
             🚀 Enviar
           </button>
         </div>

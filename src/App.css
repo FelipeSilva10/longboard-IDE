@@ -258,7 +258,7 @@ pre {
   box-shadow: 0 6px 0px #d63031;
 }
 
-/* Nova classe para agrupar as portas, placas e botão de envio bem compactos */
+/* Classe para agrupar as portas, placas e botão de envio bem compactos */
 .hardware-controls {
   display: flex;
   gap: 8px;

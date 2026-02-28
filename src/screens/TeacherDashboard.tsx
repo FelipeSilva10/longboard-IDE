@@ -85,7 +85,7 @@ export function TeacherDashboard({ onLogout, onOpenIde }: TeacherDashboardProps)
     if (data) setStudentProjects(data);
   };
 
-const confirmDeletion = async () => {
+  const confirmDeletion = async () => {
     if (!itemToDelete) return;
 
     if (itemToDelete.type === 'class') {
@@ -94,14 +94,8 @@ const confirmDeletion = async () => {
       if (managingClass?.id === itemToDelete.id) setManagingClass(null);
     } 
     else if (itemToDelete.type === 'student') {
-      // --- MÁGICA AQUI: Em vez de tentar apagar o perfil, chamamos o super-poder do Supabase ---
-    const { error } = await supabase.rpc('delete_student_user', { p_student_id: itemToDelete.id });
-      
-      if (!error) {
-        setStudents(prev => prev.filter(s => s.id !== itemToDelete.id));
-      } else {
-        alert("Erro ao excluir aluno: " + error.message);
-      }
+      await supabase.from('profiles').delete().eq('id', itemToDelete.id);
+      setStudents(prev => prev.filter(s => s.id !== itemToDelete.id));
     } 
     else if (itemToDelete.type === 'project') {
       await supabase.from('projects').delete().eq('id', itemToDelete.id);
