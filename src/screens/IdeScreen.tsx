@@ -58,7 +58,8 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   
   const [board, setBoard] = useState<'nano' | 'esp32' | 'uno'>('uno'); 
-  const [port, setPort] = useState('/dev/ttyUSB0'); 
+  const [port, setPort] = useState(''); // Começa vazio
+  const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>('// O código C++ aparecerá aqui...');
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState('Projeto');
@@ -75,7 +76,25 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     componentStyles: { workspaceBackgroundColour: '#f4f7f6', toolboxBackgroundColour: '#2f3542', toolboxForegroundColour: '#ffffff', flyoutBackgroundColour: '#3b4252', flyoutForegroundColour: '#ffffff', flyoutOpacity: 1, scrollbarColour: '#a4b0be', insertionMarkerColour: '#ffffff', insertionMarkerOpacity: 0.3, }
   });
 
+ const fetchPorts = async () => {
+    try {
+      const ports = await invoke<string[]>('get_available_ports');
+      setAvailablePorts(ports);
+      // Se encontrou portas e a porta atual estiver vazia ou inválida, já seleciona a primeira automaticamente!
+      if (ports.length > 0 && !ports.includes(port)) {
+        setPort(ports[0]);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
+
+  // Efeito que roda UMA VEZ assim que a IDE abre
+  useEffect(() => {
+    fetchPorts();
+  }, []);
 
   useEffect(() => {
     if (blocklyDiv.current && !workspace.current) {
@@ -111,8 +130,14 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
             ensureRootBlocks(); 
           }
         }; loadProject();
-      } else { ensureRootBlocks(); }
+      } else { ensureRootBlocks(); }     
     }
+    return () => {
+      if (workspace.current) {
+        workspace.current.dispose();
+        workspace.current = null;
+      }
+    };
   }, [projectId, role]);
 
   useEffect(() => { if (workspace.current) { Blockly.svgResize(workspace.current); } }, [role, isCodeVisible, isFullscreenCode]);
@@ -157,24 +182,6 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     if (!error) setSaveStatus('success'); else { setErrorMessage(error.message); setSaveStatus('error'); }
   };
 
-const handleUploadCode = async () => {
-    try {
-      setSaveStatus(null);
-      // alert('Compilando e enviando para a placa...'); // Pode apagar/comentar esse alert
-      
-      const respostaDoRust = await invoke('upload_code', { 
-        codigo: generatedCode, 
-        placa: board, 
-        porta: port // Usa a porta selecionada
-      });
-
-      alert(respostaDoRust);
-      
-    } catch (error) {
-      alert("❌ " + error);
-    }
-  };
-
   return (
     <div className="app-container">
       
@@ -192,20 +199,33 @@ const handleUploadCode = async () => {
         </div>
 
 <div className="hardware-controls">
+{/* MENU DA PLACA (Continua igual) */}
           <select value={board} onChange={(e) => setBoard(e.target.value as 'nano' | 'esp32' | 'uno')} disabled={role === 'teacher' && projectId !== undefined}>
             <option value="uno">Arduino Uno</option>
             <option value="nano">Arduino Nano</option>
             <option value="esp32">ESP32</option>
           </select>
-          <select value={port} onChange={(e) => setPort(e.target.value)}>
-            <option value="/dev/ttyACM0">/dev/ttyACM0 (Linux Uno)</option>
-            <option value="/dev/ttyUSB0">/dev/ttyUSB0 (Linux Nano)</option>
-            <option value="COM3">COM3 (Windows)</option>
-          </select>
-          
-          <button onClick={handleUploadCode}>
-            🚀 Enviar
-          </button>
+
+          {/* NOVO MENU DE PORTAS DINÂMICO E BOTÃO ATUALIZAR */}
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <select value={port} onChange={(e) => setPort(e.target.value)}>
+              {availablePorts.length === 0 ? (
+                <option value="">Nenhuma porta...</option>
+              ) : (
+                availablePorts.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))
+              )}
+            </select>
+            
+            <button 
+              onClick={fetchPorts} 
+              style={{ backgroundColor: '#e0e6ed', color: '#2c3e50', padding: '0 10px', height: '42px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}
+              title="Buscar portas conectadas"
+            >
+              🔄
+            </button>
+          </div>
           
           {/* NOVO BOTÃO DO MONITOR SERIAL */}
           <button 

@@ -78,22 +78,22 @@ fn start_serial(porta: String, window: tauri::Window, state: tauri::State<AppSta
 
         let mut serial_buf: Vec<u8> = vec![0; 1000];
         let mut string_acumulada = String::new();
-
-        // Enquanto o interruptor estiver ligado...
+        
         while is_reading.load(Ordering::Relaxed) {
-            if let Ok(t) = port.read(serial_buf.as_mut_slice()) {
-                if t > 0 {
+            match port.read(serial_buf.as_mut_slice()) {
+                Ok(t) if t > 0 => {
                     let pedaco = String::from_utf8_lossy(&serial_buf[..t]);
                     string_acumulada.push_str(&pedaco);
                     
-                    // Se o robô pulou uma linha (\n), manda a frase inteira pro React!
                     while let Some(pos) = string_acumulada.find('\n') {
                         let frase = string_acumulada[..pos].trim_end().to_string();
                         string_acumulada = string_acumulada[pos+1..].to_string();
                         
-                        // 🚀 EMITE O EVENTO "serial-message" PRO FRONTEND REACT
                         let _ = window.emit("serial-message", frase);
                     }
+                }
+                _ => {
+                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
         }
@@ -109,6 +109,20 @@ fn stop_serial(state: tauri::State<AppState>) -> Result<String, String> {
     Ok("Monitor parado".to_string())
 }
 
+// --- COMANDO 4: LISTAR PORTAS USB DISPONÍVEIS ---
+#[tauri::command]
+fn get_available_ports() -> Result<Vec<String>, String> {
+    // Tenta buscar todas as portas
+    match serialport::available_ports() {
+        Ok(ports) => {
+            let mut port_names: Vec<String> = ports.into_iter().map(|p| p.port_name).collect();
+            port_names.sort();
+            Ok(port_names)
+        },
+        Err(e) => Err(format!("Erro ao buscar portas USB: {}", e))
+    }
+}
+
 fn main() {
     let app_state = AppState {
         is_reading_serial: Arc::new(AtomicBool::new(false)),
@@ -117,7 +131,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init()) 
         .manage(app_state) 
-        .invoke_handler(tauri::generate_handler![upload_code, start_serial, stop_serial])
+        .invoke_handler(tauri::generate_handler![upload_code, start_serial, stop_serial, get_available_ports])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
