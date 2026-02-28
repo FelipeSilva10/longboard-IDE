@@ -149,9 +149,14 @@ cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
     return [`digitalRead(${block.getFieldValue('PIN')})`, 0]; 
   };
 
-  cppGenerator.forBlock['escrever_serial_valor'] = function(block: Blockly.Block) { 
-    const valorEncaixado = cppGenerator.valueToCode(block, 'VALOR', 99) || '0';
-    return `  Serial.println(${valorEncaixado});\n`; 
+  cppGenerator.forBlock['escrever_serial'] = function(block: Blockly.Block) {
+    const rawText = block.getFieldValue('TEXT') || '';
+    const safeText = rawText
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n');
+
+    return `  Serial.println("${safeText}");\n`; 
   };
 
 const toolboxConfig = {
@@ -223,7 +228,16 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     }
   };
 
-  useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
+  useEffect(() => {
+    currentBoardPins = BOARDS[board].pins;
+
+    if (workspace.current) {
+      workspace.current.getAllBlocks(false).forEach(block => {
+        block.initSvg();
+        block.render();
+      });
+    }
+  }, [board]);
 
   // Efeito que roda UMA VEZ assim que a IDE abre
   useEffect(() => {
@@ -239,9 +253,22 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         theme: oficinaTheme, zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
       });
 
-      workspace.current.addChangeListener((event) => {
+//EVENTO DO WORKSPACE
+   workspace.current.addChangeListener((event) => {
         if (event.isUiEvent) return; 
-        try { setGeneratedCode(cppGenerator.workspaceToCode(workspace.current!) || '// Arraste blocos para dentro de PREPARAR e AGIR!'); } catch (e) { console.error(e); }
+        if (!workspace.current) return;
+
+        try { 
+          const code = cppGenerator.workspaceToCode(workspace.current);
+          if (!code.trim()) {
+            setGeneratedCode('// Arraste blocos para dentro de PREPARAR e AGIR!');
+          } else {
+            setGeneratedCode(code);
+          }
+        } catch (e) { 
+          console.error(e); 
+          setGeneratedCode('// Erro ao gerar o código.');
+        }
       });
 
       const ensureRootBlocks = () => {
@@ -333,7 +360,7 @@ const handleUploadCode = async () => {
         setIsSerialOpen(false);
       }
       
-      // 2. MANDA COMPILAR
+      // MANDA COMPILAR
       await invoke('upload_code', { 
         codigo: generatedCode, 
         placa: board, 
