@@ -116,8 +116,8 @@ fn main() {
     };
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init()) // <--- ADICIONE APENAS ESTA LINHA AQUI!
-        .manage(app_state) // Injeta o interruptor no sistema
+        .plugin(tauri_plugin_shell::init()) 
+        .manage(app_state) 
         .invoke_handler(tauri::generate_handler![upload_code, start_serial, stop_serial])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
