@@ -113,10 +113,9 @@ const customBlocks = [
     }
   ];
 
-  //Tradutores para C++
   Blockly.defineBlocksWithJsonArray(customBlocks);
 
-cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
+  cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
      const branch = cppGenerator.statementToCode(block, 'DO') || '  // Suas configurações entrarão aqui...\n';
      return `void setup() {\n  Serial.begin(9600);\n${branch}}\n\n`; 
   };
@@ -149,14 +148,9 @@ cppGenerator.forBlock['bloco_setup'] = function(block: Blockly.Block) {
     return [`digitalRead(${block.getFieldValue('PIN')})`, 0]; 
   };
 
-  cppGenerator.forBlock['escrever_serial'] = function(block: Blockly.Block) {
-    const rawText = block.getFieldValue('TEXT') || '';
-    const safeText = rawText
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n');
-
-    return `  Serial.println("${safeText}");\n`; 
+  cppGenerator.forBlock['escrever_serial_valor'] = function(block: Blockly.Block) { 
+    const valorEncaixado = cppGenerator.valueToCode(block, 'VALOR', 99) || '0';
+    return `  Serial.println(${valorEncaixado});\n`; 
   };
 
 const toolboxConfig = {
@@ -167,7 +161,7 @@ const toolboxConfig = {
       contents: [
         { kind: 'block', type: 'configurar_pino' }, 
         { kind: 'block', type: 'escrever_pino' },
-        { kind: 'block', type: 'ler_pino_digital' } // <-- Adicionado aqui!
+        { kind: 'block', type: 'ler_pino_digital' }
       ] 
     },
     { 
@@ -181,7 +175,7 @@ const toolboxConfig = {
       kind: 'category', name: '💬 Comunicação', colour: '160', 
       contents: [
         { kind: 'block', type: 'escrever_serial' },
-        { kind: 'block', type: 'escrever_serial_valor' } // <-- Adicionado aqui!
+        { kind: 'block', type: 'escrever_serial_valor' }
       ] 
     }
   ]
@@ -194,7 +188,7 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   
   const [board, setBoard] = useState<'nano' | 'esp32' | 'uno'>('uno'); 
-  const [port, setPort] = useState(''); // Começa vazio
+  const [port, setPort] = useState(''); 
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>('// O código C++ aparecerá aqui...');
   const [isSaving, setIsSaving] = useState(false);
@@ -219,7 +213,6 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     try {
       const ports = await invoke<string[]>('get_available_ports');
       setAvailablePorts(ports);
-      // Se encontrou portas e a porta atual estiver vazia ou inválida, já seleciona a primeira automaticamente!
       if (ports.length > 0 && !ports.includes(port)) {
         setPort(ports[0]);
       }
@@ -228,18 +221,8 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     }
   };
 
-  useEffect(() => {
-    currentBoardPins = BOARDS[board].pins;
+  useEffect(() => { currentBoardPins = BOARDS[board].pins; }, [board]);
 
-    if (workspace.current) {
-      workspace.current.getAllBlocks(false).forEach(block => {
-        block.initSvg();
-        block.render();
-      });
-    }
-  }, [board]);
-
-  // Efeito que roda UMA VEZ assim que a IDE abre
   useEffect(() => {
     fetchPorts();
   }, []);
@@ -253,22 +236,9 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
         theme: oficinaTheme, zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
       });
 
-//EVENTO DO WORKSPACE
-   workspace.current.addChangeListener((event) => {
+      workspace.current.addChangeListener((event) => {
         if (event.isUiEvent) return; 
-        if (!workspace.current) return;
-
-        try { 
-          const code = cppGenerator.workspaceToCode(workspace.current);
-          if (!code.trim()) {
-            setGeneratedCode('// Arraste blocos para dentro de PREPARAR e AGIR!');
-          } else {
-            setGeneratedCode(code);
-          }
-        } catch (e) { 
-          console.error(e); 
-          setGeneratedCode('// Erro ao gerar o código.');
-        }
+        try { setGeneratedCode(cppGenerator.workspaceToCode(workspace.current!) || '// Arraste blocos para dentro de PREPARAR e AGIR!'); } catch (e) { console.error(e); }
       });
 
       const ensureRootBlocks = () => {
@@ -307,7 +277,7 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [serialMessages, isSerialOpen]);
 
-useEffect(() => {
+  useEffect(() => {
     let unlisten: () => void;
     
     const setupListener = async () => {
@@ -347,8 +317,16 @@ useEffect(() => {
     if (!error) setSaveStatus('success'); else { setErrorMessage(error.message); setSaveStatus('error'); }
   };
 
-const handleUploadCode = async () => {
+  const handleUploadCode = async () => {
     if (isUploadingRef.current) return;
+    
+    // 🛡️ A ARMADURA CONTRA O ERRO "undefined reference to setup" 🛡️
+    // Se o código C++ não tiver a estrutura básica, nem mandamos para o compilador!
+    if (!generatedCode.includes('void setup()') || !generatedCode.includes('void loop()')) {
+      setErrorMessage("As peças principais (PREPARAR e AGIR) não foram detectadas no código C++. Mexa em uma peça na tela para atualizar antes de enviar!");
+      setSaveStatus('error');
+      return;
+    }
     
     try {
       isUploadingRef.current = true;
@@ -360,7 +338,6 @@ const handleUploadCode = async () => {
         setIsSerialOpen(false);
       }
       
-      // MANDA COMPILAR
       await invoke('upload_code', { 
         codigo: generatedCode, 
         placa: board, 
@@ -381,7 +358,6 @@ const handleUploadCode = async () => {
   return (
     <div className="app-container">
       
-      {/* BARRA SUPERIOR (TOPBAR) */}
       <div className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '15px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: 'fit-content' }}>
           <img src={logoSimples} alt="Oficina Code" style={{ height: '35px' }} />
@@ -392,7 +368,6 @@ const handleUploadCode = async () => {
             )}
         </div>
 
-{/* NOVA SEÇÃO DE HARDWARE (MUITO MAIS BONITA) */}
         <div className="hardware-controls" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
           
           <div className="control-group">
@@ -440,7 +415,6 @@ const handleUploadCode = async () => {
         
         <div style={{ display: 'flex', gap: '10px' }}>
           
-          {/* 1. Menu C++ Oculto para Crianças (Aparece para professor ou visitante adulto) */}
           {role !== 'student' && (
             <button className="btn-secondary" onClick={() => setIsCodeVisible(!isCodeVisible)} style={{ margin: 0, backgroundColor: '#34495e', boxShadow: '0 4px 0px #2c3e50' }}>
               {isCodeVisible ? '🙈 Ocultar Código' : '💻 Ver Código'}
@@ -453,25 +427,21 @@ const handleUploadCode = async () => {
             </button>
           )}
 
-          {/* 4. Botão de Sair com classe btn-danger para máxima legibilidade */}
           <button className="btn-danger" onClick={onBack} style={{ margin: 0 }}>
             Sair
           </button>
         </div>
       </div>
       
-      {/* ÁREA DE TRABALHO */}
       <div className="workspace-area">
         <div ref={blocklyDiv} id="blocklyDiv" />
         
         {isCodeVisible && (
-          // 3. Aplica a classe fullscreen se o estado for verdadeiro
           <div className={`code-panel ${isFullscreenCode ? 'fullscreen' : ''}`}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <h3 style={{ margin: 0, color: 'var(--secondary)' }}>Código (C++)</h3>
               
-              {/* 3. Botão de Tela Cheia */}
               <button 
                 onClick={() => setIsFullscreenCode(!isFullscreenCode)}
                 style={{ 
@@ -488,7 +458,6 @@ const handleUploadCode = async () => {
         )}
       </div>
 
-      {/* MODAIS */}
       {saveStatus === 'success' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
@@ -511,7 +480,6 @@ const handleUploadCode = async () => {
         </div>
       )}
 
-      {/* MODAL DE CÓDIGO ENVIADO COM SUCESSO (Substitui o alert) */}
       {uploadSuccess && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
           <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
@@ -523,20 +491,17 @@ const handleUploadCode = async () => {
         </div>
       )}
 
-      {/* --- JANELA DO MONITOR SERIAL --- */}
       {isSerialOpen && (
         <div style={{
           position: 'fixed', bottom: '20px', right: '20px', width: '350px', height: '400px',
           backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
           display: 'flex', flexDirection: 'column', zIndex: 9000, overflow: 'hidden', border: '2px solid #e0e6ed'
         }}>
-          {/* Cabeçalho do Chat */}
           <div style={{ backgroundColor: '#2c3e50', color: 'white', padding: '15px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
             <span>🤖 O Robô diz...</span>
             <span style={{ cursor: 'pointer' }} onClick={handleToggleSerial}>✕</span>
           </div>
           
-          {/* Área de Mensagens */}
           <div style={{ flex: 1, padding: '15px', overflowY: 'auto', backgroundColor: '#f8fafd', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {serialMessages.length === 0 ? (
               <p style={{ color: '#a4b0be', textAlign: 'center', marginTop: '50px', fontStyle: 'italic' }}>
