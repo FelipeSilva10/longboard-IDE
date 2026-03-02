@@ -254,9 +254,10 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
 
       if (projectId) {
         const loadProject = async () => {
-          const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
-          if (data && !error) {
-            setProjectName(data.name); if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
+          const { data, error } = await supabase.from('projetos').select('*').eq('id', projectId).single();
+      if (data && !error) {
+        setProjectName(data.nome);
+        if (data.target_board) setBoard(data.target_board as 'nano' | 'esp32');
             try { if (data.workspace_data && Object.keys(data.workspace_data).length > 0) Blockly.serialization.workspaces.load(data.workspace_data, workspace.current!); } catch (err) { }
             ensureRootBlocks(); 
           }
@@ -312,7 +313,11 @@ export function IdeScreen({ role, onBack, projectId }: IdeScreenProps) {
   const handleSaveProject = async () => {
     if (!projectId || !workspace.current) return;
     setIsSaving(true);
-    const { error } = await supabase.from('projects').update({ workspace_data: Blockly.serialization.workspaces.save(workspace.current), target_board: board, updated_at: new Date().toISOString() }).eq('id', projectId);
+    const { error } = await supabase.from('projetos').update({
+      workspace_data: Blockly.serialization.workspaces.save(workspace.current),
+      target_board: board,
+      updated_at: new Date().toISOString()
+    }).eq('id', projectId);
     setIsSaving(false);
     if (!error) setSaveStatus('success'); else { setErrorMessage(error.message); setSaveStatus('error'); }
   };

@@ -14,7 +14,7 @@ function App() {
   const handleLogin = (role: 'student' | 'teacher' | 'visitor') => {
     if (role === 'teacher') setCurrentRole('teacher-dashboard');
     else if (role === 'student') setCurrentRole('student-dashboard');
-    else setCurrentRole(role);
+    else setCurrentRole('visitor');
   };
 
   const handleLogout = () => {
@@ -22,39 +22,47 @@ function App() {
     setActiveProjectId(undefined);
   };
 
+  // Corrigido: limpa o projectId antes de voltar
   const handleBackToDashboard = () => {
+    setActiveProjectId(undefined);
     if (currentRole === 'teacher') setCurrentRole('teacher-dashboard');
     else if (currentRole === 'student') setCurrentRole('student-dashboard');
-    else handleLogout(); 
+    else handleLogout();
   };
 
   if (currentRole === 'guest') return <LoginScreen onLogin={handleLogin} />;
-  
+
   if (currentRole === 'teacher-dashboard') {
     return (
-      <TeacherDashboard 
-        onLogout={handleLogout} 
-        onOpenIde={(projectId) => {
-          setActiveProjectId(projectId); // Guarda o ID do projeto do aluno
-          setCurrentRole('teacher');     // Envia o professor para a IDE
-        }} 
-      />
-    );
-  }
-  
-  if (currentRole === 'student-dashboard') {
-    return (
-      <StudentDashboard 
-        onLogout={handleLogout} 
+      <TeacherDashboard
+        onLogout={handleLogout}
         onOpenIde={(projectId) => {
           setActiveProjectId(projectId);
-          setCurrentRole('student');
-        }} 
+          setCurrentRole('teacher');
+        }}
       />
     );
   }
 
-  return <IdeScreen role={currentRole} onBack={handleBackToDashboard} projectId={activeProjectId} />;
+  if (currentRole === 'student-dashboard') {
+    return (
+      <StudentDashboard
+        onLogout={handleLogout}
+        onOpenIde={(projectId) => {
+          setActiveProjectId(projectId);
+          setCurrentRole('student');
+        }}
+      />
+    );
+  }
+
+  return (
+    <IdeScreen
+      role={currentRole}
+      onBack={handleBackToDashboard}
+      projectId={activeProjectId}
+    />
+  );
 }
 
 export default App;
