@@ -30,7 +30,7 @@ fn upload_code(codigo: String, placa: String, porta: String, state: tauri::State
     let sketch_dir = temp_dir.join("oficina_code_sketch");
     let sketch_path = sketch_dir.join("oficina_code_sketch.ino");
 
-    println!(">>> [4] Criando pasta temporária...");
+    println!(">>> [4] Criando pasta temporária");
     let _ = fs::create_dir_all(&sketch_dir);
 
     println!(">>> [5] Salvando o código C++ gerado...");
