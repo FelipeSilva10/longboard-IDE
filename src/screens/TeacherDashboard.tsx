@@ -91,8 +91,6 @@ export function TeacherDashboard({ onLogout, onOpenOwnProject, onInspectStudentP
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Tenta inserir sem turma_id primeiro (funciona se coluna for nullable)
-    // Se o banco exigir turma_id (NOT NULL), busca a primeira turma do professor
     type InsertPayload = { dono_id: string; nome: string; target_board: string; turma_id?: string };
     let payload: InsertPayload = { dono_id: user.id, nome: newProjectName.trim(), target_board: 'uno' };
 
